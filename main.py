@@ -1,15 +1,11 @@
 import os
 from glob import glob
 import sys
-# import pymesh
 import numpy as np
 import scan2mesh_computations as s2m_opt
 import matplotlib.pyplot as plt
 from psbody.mesh import Mesh
-from experiments.tianye.align_d3dfacs.find_opt_landmark_indexes import solve_barycentric_coordinates_for_closest_points, mesh_points_by_barycentric_coordinates
 import chumpy as ch
-from psbody.smpl.serialization import load_model
-from psbody.smpl.verts import verts_decorated
 from plyfile import PlyData, PlyElement
 
 def load_pp(fname):

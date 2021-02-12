@@ -1,7 +1,5 @@
 import numpy as np
-# import pymesh
 from math import sqrt
-import csv
 import chumpy as ch
 from psbody.mesh import Mesh
 from psbody.smpl.rodrigues import Rodrigues
