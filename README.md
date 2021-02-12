@@ -1,5 +1,14 @@
-# now_evaluation
-This is the official repository for evaluating NoW Benchmark Dataset
+# NoW Evaluation
+
+This is the official repository for evaluation on the [NoW Benchmark Dataset](https://ringnet.is.tue.mpg.de/challenge). The goal of the NoW benchmark is to introduce a standard evaluation metric to measure the accuracy and robustness of 3D face reconstruction methods under variations in viewing angle, lighting, and common occlusions. 
+
+Given 3D face reconstructions for the NoW data, the provided error computes the scan-to-mesh error as described in the [RingNet paper](https://ps.is.tuebingen.mpg.de/uploads_file/attachment/attachment/509/paper_camera_ready.pdf).
+
+```
+Learning to Regress 3D Face Shape and Expression from an Image without 3D Supervision
+Soubhik Sanyal, Timo Bolkart, Haiwen Feng, Michael J. Black
+Computer Vision and Pattern Recognition (CVPR) 2019
+```
 
 ## Clone the repository 
 ```
