@@ -6,18 +6,18 @@ import scan2mesh_computations as s2m_opt
 import matplotlib.pyplot as plt
 from psbody.mesh import Mesh
 import chumpy as ch
-from plyfile import PlyData, PlyElement
+# from plyfile import PlyData, PlyElement
 
 def load_pp(fname):
     lamdmarks = np.zeros([7,3]).astype(np.float32)
     # import ipdb; ipdb.set_trace()
     with open(fname, 'r') as f:
         lines = f.readlines()
-        for j in xrange(8,15): # for j in xrange(9,15):
+        for j in range(8,15): # for j in xrange(9,15):
             # import ipdb; ipdb.set_trace()
             line_contentes = lines[j].split(' ')
             # Check the .pp file to get to accurately pickup the columns for x , y and z coordinates
-            for i in xrange(len(line_contentes)):
+            for i in range(len(line_contentes)):
                 if line_contentes[i].split('=')[0] == 'x':
                     x_content = float((line_contentes[i].split('=')[1]).split('"')[1])
                 elif line_contentes[i].split('=')[0] == 'y':
@@ -36,19 +36,19 @@ def load_txt(fname):
         lines = f.read().splitlines()
     # import ipdb; ipdb.set_trace()
     line = []
-    for i in xrange(len(lines)): # For Jiaxiang_Shang
+    for i in range(len(lines)): # For Jiaxiang_Shang
         line.append(lines[i].split(' '))
     # import ipdb; ipdb.set_trace()
     landmarks = np.array(line, dtype=np.float32)
     lmks = landmarks
     return lmks
 
-def read_ply(fname):
-    plydata = PlyData.read(fname)
-    v = np.stack([plydata['vertex']['x'],plydata['vertex']['y'],plydata['vertex']['z']],axis=1)
-    f = np.stack( plydata['face']['vertex_indices'].ravel())
-    mesh = Mesh(v=v,f=f)
-    return mesh
+# def read_ply(fname):
+#     plydata = PlyData.read(fname)
+#     v = np.stack([plydata['vertex']['x'],plydata['vertex']['y'],plydata['vertex']['z']],axis=1)
+#     f = np.stack( plydata['face']['vertex_indices'].ravel())
+#     mesh = Mesh(v=v,f=f)
+#     return mesh
 
 def cumulative_error(errors, nbins=100000):
     errors = errors.ravel()
@@ -128,7 +128,7 @@ def metric_computation():
     with open(imgs_list,'r') as f:
         lines = f.read().splitlines()
 
-    for i in xrange(len(lines)):#xrange(5): #
+    for i in range(len(lines)):#xrange(5): #
         print(i)
         subject = lines[i].split('/')[-3]
         experiments = lines[i].split('/')[-2]
@@ -162,7 +162,7 @@ def different_challenges():
     with open(imgs_list,'r') as f:
         lines = f.read().splitlines()
 
-    for i in xrange(len(lines)):#xrange(1): #
+    for i in range(len(lines)):#xrange(1): #
         print(i)
         print(lines[i])
         subject = lines[i].split('/')[-3]
