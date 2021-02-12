@@ -2,3 +2,4 @@ numpy
 scipy
 matplotlib
 chumpy
+opencv-python
