@@ -2,9 +2,9 @@ import numpy as np
 from math import sqrt
 import chumpy as ch
 from psbody.mesh import Mesh
-from psbody.smpl.rodrigues import Rodrigues
-from body.alignment.objectives import sample_from_mesh
-from body.ch.mesh_distance import ScanToMesh
+from smpl_webuser.posemapper import Rodrigues
+from sbody.alignment.objectives import sample_from_mesh
+from sbody.mesh_distance import ScanToMesh
 from psbody.mesh.meshviewer import MeshViewer
 from scipy.sparse.linalg import cg
 

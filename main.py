@@ -74,17 +74,17 @@ def generating_cumulative_error_plots():
     extreme_3D_withcrop_cumul_error = cumulative_error(np.hstack(extreme_3D_withcrop_distance_metric))
     our_pred_cumul_error = cumulative_error(np.hstack(our_pred_distance_metric))
 
-    print 'PRNet with crop median: ', np.median(np.hstack(prnet_with_crop_distance_metric))
-    print 'Hassner with crop median: ', np.median(np.hstack(extreme_3D_withcrop_distance_metric))
-    print 'Our without crop median: ', np.median(np.hstack(our_pred_distance_metric))
+    print('PRNet with crop median: ', np.median(np.hstack(prnet_with_crop_distance_metric)))
+    print('Hassner with crop median: ', np.median(np.hstack(extreme_3D_withcrop_distance_metric)))
+    print('Our without crop median: ', np.median(np.hstack(our_pred_distance_metric)))
 
-    print 'PRNet with crop std: ', np.std(np.hstack(prnet_with_crop_distance_metric))
-    print 'Hassner with crop std: ', np.std(np.hstack(extreme_3D_withcrop_distance_metric))
-    print 'Our without crop std: ', np.std(np.hstack(our_pred_distance_metric))
+    print('PRNet with crop std: ', np.std(np.hstack(prnet_with_crop_distance_metric)))
+    print('Hassner with crop std: ', np.std(np.hstack(extreme_3D_withcrop_distance_metric)))
+    print('Our without crop std: ', np.std(np.hstack(our_pred_distance_metric)))
 
-    print 'PRNet with crop average: ', np.average(np.hstack(prnet_with_crop_distance_metric))
-    print 'Hassner with crop average: ', np.average(np.hstack(extreme_3D_withcrop_distance_metric))
-    print 'Our without crop average: ', np.average(np.hstack(our_pred_distance_metric))
+    print('PRNet with crop average: ', np.average(np.hstack(prnet_with_crop_distance_metric)))
+    print('Hassner with crop average: ', np.average(np.hstack(extreme_3D_withcrop_distance_metric)))
+    print('Our without crop average: ', np.average(np.hstack(our_pred_distance_metric)))
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -129,7 +129,7 @@ def metric_computation():
         lines = f.read().splitlines()
 
     for i in xrange(len(lines)):#xrange(5): #
-        print i
+        print(i)
         subject = lines[i].split('/')[-3]
         experiments = lines[i].split('/')[-2]
         filename = lines[i].split('/')[-1]
@@ -144,11 +144,11 @@ def metric_computation():
         predicted_lmks = np.load(predicted_landmarks_path)#load_txt_will_smith(predicted_landmarks_path)#load_txt(predicted_landmarks_path)#
 
         distances = compute_error_metric(gt_mesh_path, gt_lmk_path, mesh, predicted_lmks)
-        print distances
+        print(distances)
         
         distance_metric.append(distances)
     computed_distances = {'computed_distances': distance_metric}
-    np.save("/ps/project/now_challenge/Now_Test_set/comparisons/msra_computed_distances.npy", computed_distances)
+    # np.save("/ps/project/now_challenge/Now_Test_set/comparisons/msra_computed_distances.npy", computed_distances)
 
 def different_challenges():
     imgs_list = '/ps/scratch/ssanyal/NoW_Dataset/comaprisons/NoW_website_validation/recheck_cvpr_submission/image_paths.txt'
@@ -163,8 +163,8 @@ def different_challenges():
         lines = f.read().splitlines()
 
     for i in xrange(len(lines)):#xrange(1): #
-        print i
-        print lines[i]
+        print(i)
+        print(lines[i])
         subject = lines[i].split('/')[-3]
         experiments = lines[i].split('/')[-2]
         filename = lines[i].split('/')[-1]
@@ -174,7 +174,7 @@ def different_challenges():
             continue
         # import ipdb; ipdb.set_trace()
         distances = pre_dist[i]
-        print distances
+        print(distances)
         distance_metric.append(distances)
     computed_distances = {'computed_distances': distance_metric}
     np.save("/ps/scratch/ssanyal/NoW_Dataset/comaprisons/NoW_website_validation/recheck_cvpr_submission/HMR_VGG2Ring_contranstive_R6_npy_resnet_fc3_dropout_Elr1e-04_kp-weight60_shp-weight1_encod_512_512_decode_l1_shp100exp50_nostg3_invrt_config_resfixed_alpha_0.5_srw_1e4_erw_1e4_scratch_batch32_68641/selfie.npy", computed_distances)
