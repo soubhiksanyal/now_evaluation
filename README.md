@@ -57,13 +57,12 @@ Clone [Eigen](http://eigen.tuxfamily.org/index.php?title=Main_Page) and copy the
 
 ```
 git clone https://gitlab.com/libeigen/eigen.git
-cp <your_home_dir>/eigen <your_home_dir>/now_evaluation/sbody/alignment/mesh_distance/eigen -r
+cp eigen now_evaluation/sbody/alignment/mesh_distance/eigen -r
 ```
 
-Compile the code in the directory 'now_evaluation/sbody/alignment/mesh_distance' by the follwing command
-
+Edit the file 'now_evaluation/sbody/alignment/mesh_distance/setup.py' to set EIGEN_DIR to the location of Eigen. Then compile the code by following command
 ```
-cd <your_home_dir>/now_evaluation/sbody/alignment/mesh_distance
+cd now_evaluation/sbody/alignment/mesh_distance
 make
 ```
 
