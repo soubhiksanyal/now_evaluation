@@ -30,6 +30,11 @@ python3 -m venv <your_home_dir>/.virtualenvs/now_evaluation
 source <your_home_dir>/.virtualenvs/now_evaluation/bin/activate
 ```
 
+Make sure your pip version is up-to-date:
+```
+pip install -U pip
+```
+
 Install the requirements by using:
 
 ```
