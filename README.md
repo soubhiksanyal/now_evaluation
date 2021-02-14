@@ -92,7 +92,7 @@ The corresponding function is generating_cumulative_error_plots().
 
 Please change the paths accordingly in generating_cumulative_error_plots().
 
-**Note that ground truth scans are only provided for the validation set. In order to participate in the NoW challenge, please submit the test set predictions to ringnet@tue.mpg.de as described [here](https://ringnet.is.tue.mpg.de/challenge)**
+**Note that ground truth scans are only provided for the validation set. In order to participate in the NoW challenge, please submit the test set predictions to ringnet@tue.mpg.de as described [here](https://ringnet.is.tue.mpg.de/challenge)**.
 
 ## License
 
