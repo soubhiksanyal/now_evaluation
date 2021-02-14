@@ -102,10 +102,9 @@ def compute_error_metric(gt_path, gt_lmk_path, predicted_mesh_path, predicted_lm
 def metric_computation():
     # Path of the meshes predicted for the NoW challenge
     predicted_mesh_folder = ''
-    # Image list, for the NoW validation data, this file can be downloaded from here: https://ringnet.is.tue.mpg.de/downloads
-    imgs_list = ''
     # Identifier of the method which is used as filename for the output error file
     method_identifier = ''
+
     # Output path for the computed error
     error_out_path = ''
 
@@ -117,6 +116,8 @@ def metric_computation():
     gt_mesh_folder = ''
     # Path of the ground truth scan landmarks
     gt_lmk_folder = ''
+    # Image list, for the NoW validation data, this file can be downloaded from here: https://ringnet.is.tue.mpg.de/downloads
+    imgs_list = ''
 
     if not os.path.exists(predicted_mesh_folder):
         print('Predicted mesh path not found - %s' % predicted_mesh_folder)
