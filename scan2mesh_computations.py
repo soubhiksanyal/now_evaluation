@@ -1,3 +1,13 @@
+'''
+Max-Planck-Gesellschaft zur Foerderung der Wissenschaften e.V. (MPG) is holder of all proprietary rights on this computer program. 
+Using this computer program means that you agree to the terms in the LICENSE file (https://ringnet.is.tue.mpg.de/license). 
+Any use not explicitly granted by the LICENSE is prohibited.
+Copyright 2020 Max-Planck-Gesellschaft zur Foerderung der Wissenschaften e.V. (MPG). acting on behalf of its 
+Max Planck Institute for Intelligent Systems. All rights reserved.
+More information about the NoW Challenge is available at https://ringnet.is.tue.mpg.de/challenge.
+For comments or questions, please email us at ringnet@tue.mpg.de
+'''
+
 import numpy as np
 from math import sqrt
 import chumpy as ch
@@ -9,43 +19,38 @@ from psbody.mesh.meshviewer import MeshViewer
 from scipy.sparse.linalg import cg
 
 
-def rigid_scan_2_mesh_alignment(scan, mesh):
+def rigid_scan_2_mesh_alignment(scan, mesh, visualize=False):
     options = {'sparse_solver': lambda A, x: cg(A, x, maxiter=2000)[0]}
     options['disp'] = 1.0
     options['delta_0'] = 0.1
     options['e_3'] = 1e-4
-    # scan_fname = '/ps/dynamics10/FaceTalk/FaceTalk_170912_03278_TA/sentence09/meshes/sentence09.000001.obj'
-    # mesh_fname = '/ps/body/projects/faces/timo/new_template_revised/body_template_mesh/head_eyes_6.obj'
-    # scan = Mesh(filename=scan_fname)
-    # mesh = Mesh(filename=mesh_fname)
-    # mesh.v[:] *= 1000 #our scans are in mm, our model meshes in m
-    # only use this if no initial rigid alignment from landmarks is given
-    # mesh.v[:] = mesh.v - (np.mean(mesh.v, axis=0) - np.mean(scan.v, axis=0))
+
     s = ch.ones(1)
     r = ch.zeros(3)
     R = Rodrigues(r)
     t = ch.zeros(3)
     trafo_mesh = s*(R.dot(mesh.v.T)).T + t
-    # num_samples = 1000
-    # sample_type = 'vertices'
-    # sample_seed = 0
-    # scan_sampler = sample_from_mesh(scan, num_samples=num_samples, sample_type=sample_type, seed=sample_seed)
+
     sampler = sample_from_mesh(scan, sample_type='vertices')
     s2m = ScanToMesh(scan, trafo_mesh, mesh.f, scan_sampler=sampler, signed=False, normalize=False)
-    #Visualization code
-    # mv = MeshViewer()
-    # mv.set_static_meshes([scan])
-    # tmp_mesh = Mesh(trafo_mesh.r, mesh.f)
-    # tmp_mesh.set_vertex_colors('light sky blue')
-    # mv.set_dynamic_meshes([tmp_mesh])
-    # def on_show(_):
-    #     tmp_mesh = Mesh(trafo_mesh.r, mesh.f)
-    #     tmp_mesh.set_vertex_colors('light sky blue')
-    #     mv.set_dynamic_meshes([tmp_mesh])
+
+    if visualize:       
+        #Visualization code
+        mv = MeshViewer()
+        mv.set_static_meshes([scan])
+        tmp_mesh = Mesh(trafo_mesh.r, mesh.f)
+        tmp_mesh.set_vertex_colors('light sky blue')
+        mv.set_dynamic_meshes([tmp_mesh])
+        def on_show(_):
+            tmp_mesh = Mesh(trafo_mesh.r, mesh.f)
+            tmp_mesh.set_vertex_colors('light sky blue')
+            mv.set_dynamic_meshes([tmp_mesh])
+    else:
+        def on_show(_):
+            pass
+
+    ch.minimize(fun={'dist': s2m, 's_reg': 100*(ch.abs(s)-s)}, x0=[s, r, t], callback=on_show, options=options)
     # ch.minimize(fun={'dist': s2m, 's_reg': 0.001*(s-0)}, x0=[s, r, t], callback=on_show, options=options)
-    ch.minimize(fun={'dist': s2m, 's_reg': 0.001*(s-0)}, x0=[s, r, t], options=options)
-    # ch.minimize(fun={'dist': s2m, 's_reg': 0.001*(s-0)}, x0=[s, r, t], callback=on_show, options=options)
-    # import pdb; pdb.set_trace()
     return s,Rodrigues(r),t
 
 
@@ -118,8 +123,6 @@ def compute_errors(groundtruth_vertices, groundtruth_faces, grundtruth_landmark_
 
     sampler = sample_from_mesh(gt_scan, sample_type='vertices')
     s2m = ScanToMesh(gt_scan, trafo_mesh, aligned_mesh.f, scan_sampler=sampler, signed=False, normalize=False)
-    # s2m = ScanToMesh(gt_scan, aligned_mesh.v, aligned_mesh.f, signed=False, normalize=False)
-    # import ipdb; ipdb.set_trace()
     distances = s2m.r#[sqrt(d2) for d2 in squared_distances]
 
     return distances

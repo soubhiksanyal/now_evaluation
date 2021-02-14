@@ -1,3 +1,13 @@
+'''
+Max-Planck-Gesellschaft zur Foerderung der Wissenschaften e.V. (MPG) is holder of all proprietary rights on this computer program. 
+Using this computer program means that you agree to the terms in the LICENSE file (https://ringnet.is.tue.mpg.de/license). 
+Any use not explicitly granted by the LICENSE is prohibited.
+Copyright 2020 Max-Planck-Gesellschaft zur Foerderung der Wissenschaften e.V. (MPG). acting on behalf of its 
+Max Planck Institute for Intelligent Systems. All rights reserved.
+More information about the NoW Challenge is available at https://ringnet.is.tue.mpg.de/challenge.
+For comments or questions, please email us at ringnet@tue.mpg.de
+'''
+
 import os
 from glob import glob
 import sys
@@ -6,7 +16,6 @@ import scan2mesh_computations as s2m_opt
 import matplotlib.pyplot as plt
 from psbody.mesh import Mesh
 import chumpy as ch
-# from plyfile import PlyData, PlyElement
 
 def load_pp(fname):
     lamdmarks = np.zeros([7,3]).astype(np.float32)
@@ -43,13 +52,6 @@ def load_txt(fname):
     lmks = landmarks
     return lmks
 
-# def read_ply(fname):
-#     plydata = PlyData.read(fname)
-#     v = np.stack([plydata['vertex']['x'],plydata['vertex']['y'],plydata['vertex']['z']],axis=1)
-#     f = np.stack( plydata['face']['vertex_indices'].ravel())
-#     mesh = Mesh(v=v,f=f)
-#     return mesh
-
 def cumulative_error(errors, nbins=100000):
     errors = errors.ravel()
     values, base = np.histogram(errors, bins=nbins) #values, base = np.histogram(1000*errors, bins=nbins)
@@ -58,33 +60,20 @@ def cumulative_error(errors, nbins=100000):
     return (base[:-1], cumulative)
 
 def generating_cumulative_error_plots():
-    prnet_with_crop = np.load('/ps/scratch/ssanyal/NoW_Dataset/comaprisons/NoW_website_validation/recheck_cvpr_submission/PRNet/selfie.npy')
-    extreme_3D_withcrop = np.load('/ps/scratch/ssanyal/NoW_Dataset/comaprisons/NoW_website_validation/recheck_cvpr_submission/3dmm_cnn/selfie.npy')
-    our_pred = np.load("/ps/scratch/ssanyal/NoW_Dataset/comaprisons/NoW_website_validation/recheck_cvpr_submission/HMR_VGG2Ring_contranstive_R6_npy_resnet_fc3_dropout_Elr1e-04_kp-weight60_shp-weight1_encod_512_512_decode_l1_shp100exp50_nostg3_invrt_config_resfixed_alpha_0.5_srw_1e4_erw_1e4_scratch_batch32_68641/selfie.npy")
+    # List of method identifiers, used as method name within the polot
+    method_identifiers = []
+    # List of paths to the error files (must be of same order than the method identifiers)
+    method_error_fnames = [ ]
+    # Output cumulative error image filename
+    out_fname = ''
 
-    prnet_with_crop = prnet_with_crop[()]
-    extreme_3D_withcrop = extreme_3D_withcrop[()]
-    our_pred = our_pred[()]
-    
-    prnet_with_crop_distance_metric = prnet_with_crop['computed_distances']
-    extreme_3D_withcrop_distance_metric = extreme_3D_withcrop['computed_distances']
-    our_pred_distance_metric = our_pred['computed_distances']#our_pred['distance_metric']#
+    method_errors = []
+    for fname in method_error_fnames:
+        method_errors.append(np.load(fname, allow_pickle=True, encoding="latin1").item()['computed_distances'])
 
-    prnet_with_crop_cumul_error = cumulative_error(np.hstack(prnet_with_crop_distance_metric))
-    extreme_3D_withcrop_cumul_error = cumulative_error(np.hstack(extreme_3D_withcrop_distance_metric))
-    our_pred_cumul_error = cumulative_error(np.hstack(our_pred_distance_metric))
-
-    print('PRNet with crop median: ', np.median(np.hstack(prnet_with_crop_distance_metric)))
-    print('Hassner with crop median: ', np.median(np.hstack(extreme_3D_withcrop_distance_metric)))
-    print('Our without crop median: ', np.median(np.hstack(our_pred_distance_metric)))
-
-    print('PRNet with crop std: ', np.std(np.hstack(prnet_with_crop_distance_metric)))
-    print('Hassner with crop std: ', np.std(np.hstack(extreme_3D_withcrop_distance_metric)))
-    print('Our without crop std: ', np.std(np.hstack(our_pred_distance_metric)))
-
-    print('PRNet with crop average: ', np.average(np.hstack(prnet_with_crop_distance_metric)))
-    print('Hassner with crop average: ', np.average(np.hstack(extreme_3D_withcrop_distance_metric)))
-    print('Our without crop average: ', np.average(np.hstack(our_pred_distance_metric)))
+    cumulative_errors = []
+    for error in method_errors:
+        cumulative_errors.append(cumulative_error(np.hstack(error)))
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -92,13 +81,14 @@ def generating_cumulative_error_plots():
     ax.set_xticks(np.arange(0, 8, 1.0))
     ax.set_ylim([0, 100])
     ax.set_yticks(np.arange(0, 101, 20.0))
-    plt.plot(prnet_with_crop_cumul_error[0], prnet_with_crop_cumul_error[1],'r', label = 'PRNet [ECCV 2018]')
-    plt.plot(extreme_3D_withcrop_cumul_error[0], extreme_3D_withcrop_cumul_error[1], 'g', label = '3DMM-CNN [CVPR 2017]')
-    plt.plot(our_pred_cumul_error[0], our_pred_cumul_error[1], 'b', label = 'Ours')
+
+    for i, method_id in enumerate(method_identifiers):
+        plt.plot(cumulative_errors[i][0], cumulative_errors[i][1], label = method_id)
+
     plt.xlabel('Error [mm]', fontsize=12)
     plt.ylabel('Percentage', fontsize=12)
     lgd = ax.legend(loc='lower right')
-    plt.savefig('/ps/scratch/ssanyal/NoW_Dataset/comaprisons/NoW_website_validation/recheck_cvpr_submission/selfie.png')
+    plt.savefig(out_fname)
 
 def compute_error_metric(gt_path, gt_lmk_path, predicted_mesh_path, predicted_lmk_path):
     groundtruth_scan = Mesh(filename=gt_path)
@@ -109,81 +99,83 @@ def compute_error_metric(gt_path, gt_lmk_path, predicted_mesh_path, predicted_lm
                                           predicted_mesh.f, predicted_mesh_landmark_points)
     return np.stack(distances)
 
-
-# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 def metric_computation():
-    predicted_mesh_folder =  '/ps/scratch/face2d3d/texture_in_the_wild_code/NoW_validation/results/previous_works_validation_results/msra/NoW_test_pred_meshes_original_BFM/'# '/ps/project/face2d3d/comparisons/NoW_website/will_smith_york/NoW_result_n/' #'/ps/face2d3d/face2mesh/results/stirling_comparison_new/'
-    #### imgs_list = '/ps/face2d3d/comparisons/FAMOS_results/image_path_original_path.txt'
-    # imgs_list = '/ps/scratch/ssanyal/NoW_Dataset/comaprisons/NoW_website/image_paths.txt'
-    imgs_list = '/ps/project/now_challenge/Now_Test_set/image_paths.txt'
-    
-    gt_mesh_folder = '/ps/project/face2d3d/benchmark_dataset/extended_benchmark/release_soubhik/full_data/scans/'
-    gt_lmk_folder = '/ps/project/face2d3d/benchmark_dataset/extended_benchmark/release_soubhik/full_data/scans_lmks/'
-    
-    tot_dist = 0.0
-    img_count = 0
+    # Path of the meshes predicted for the NoW challenge
+    predicted_mesh_folder = ''
+    # Image list, for the NoW validation data, this file can be downloaded from here: https://ringnet.is.tue.mpg.de/downloads
+    imgs_list = ''
+    # Identifier of the method which is used as filename for the output error file
+    method_identifier = ''
+    # Output path for the computed error
+    error_out_path = ''
+
+    # If empty, error across all challenges (i.e. multiview_neutral, multiview_expressions, multiview_occlusions, or selfie) is computed. 
+    # If challenge \in {'multiview_neutral', 'multiview_expressions', 'multiview_occlusions', 'selfie'}, only results of the specified challenge are considered
+    challenge = ''
+
+    # Path of the ground truth scans
+    gt_mesh_folder = ''
+    # Path of the ground truth scan landmarks
+    gt_lmk_folder = ''
+
+    if not os.path.exists(predicted_mesh_folder):
+        print('Predicted mesh path not found - %s' % predicted_mesh_folder)
+        return
+    if not os.path.exists(imgs_list):
+        print('Image list not found - %s' % imgs_list)
+        return
+    if not os.path.exists(error_out_path):
+        os.makedirs(error_out_path)
+
     distance_metric = []
     
     with open(imgs_list,'r') as f:
         lines = f.read().splitlines()
 
-    for i in range(len(lines)):#xrange(5): #
-        print(i)
+    for i in range(len(lines)):
         subject = lines[i].split('/')[-3]
         experiments = lines[i].split('/')[-2]
         filename = lines[i].split('/')[-1]
         
-        predicted_mesh = predicted_mesh_folder + subject + '/' + experiments + '/' + filename[:-4] + '.obj'
-        predicted_landmarks_path = predicted_mesh_folder + subject + '/' + experiments + '/' + filename[:-4] + '.npy'
+        if challenge != '':
+            if experiments != challenge: 
+                continue
+
+        print('Processing %d of %d (%s, %s, %s)' % (i+1, len(lines), subject, experiments, filename))
+
+        predicted_mesh_path = os.path.join(predicted_mesh_folder, subject, experiments, filename[:-4] + '.obj')
+        predicted_landmarks_path = os.path.join(predicted_mesh_folder, subject, experiments, filename[:-4] + '.npy')
         
         gt_mesh_path = glob(gt_mesh_folder + subject + '/' + '*.obj')[0]
         gt_lmk_path = (glob(gt_lmk_folder + subject + '/' + '*.pp')[0])
 
-        mesh = Mesh(filename=predicted_mesh)#read_ply(predicted_mesh)#
-        predicted_lmks = np.load(predicted_landmarks_path)#load_txt_will_smith(predicted_landmarks_path)#load_txt(predicted_landmarks_path)#
+        if not os.path.exists(predicted_mesh_path):
+            print('Predicted mesh not found - Resulting error is insufficient for comparison')
+            print(predicted_mesh_path)
+            continue
+        if not os.path.exists(predicted_landmarks_path):
+            print('Predicted mesh landmarks not found - Resulting error is insufficient for comparison')
+            print(predicted_landmarks_path)
+            continue
 
-        distances = compute_error_metric(gt_mesh_path, gt_lmk_path, mesh, predicted_lmks)
+        predicted_mesh = Mesh(filename=predicted_mesh_path)
+        predicted_lmks = np.load(predicted_landmarks_path)
+
+        distances = compute_error_metric(gt_mesh_path, gt_lmk_path, predicted_mesh, predicted_lmks)
         print(distances)
+        return
         
         distance_metric.append(distances)
     computed_distances = {'computed_distances': distance_metric}
-    # np.save("/ps/project/now_challenge/Now_Test_set/comparisons/msra_computed_distances.npy", computed_distances)
-
-def different_challenges():
-    imgs_list = '/ps/scratch/ssanyal/NoW_Dataset/comaprisons/NoW_website_validation/recheck_cvpr_submission/image_paths.txt'
-    # imgs_list = '/ps/project/face2d3d/benchmark_dataset/extended_benchmark/release_soubhik/NoW_validation/resized_img_paths.txt'
-    tot_dist = 0.0
-    img_count = 0
-    distance_metric = []
-    pre_dist = np.load('/ps/scratch/ssanyal/NoW_Dataset/comaprisons/NoW_website_validation/recheck_cvpr_submission/HMR_VGG2Ring_contranstive_R6_npy_resnet_fc3_dropout_Elr1e-04_kp-weight60_shp-weight1_encod_512_512_decode_l1_shp100exp50_nostg3_invrt_config_resfixed_alpha_0.5_srw_1e4_erw_1e4_scratch_batch32_68641/ring_distance_full.npy')
-    pre_dist = pre_dist[()]
-    pre_dist = pre_dist['distance_metric'] #pre_dist['computed_distances']#
-    with open(imgs_list,'r') as f:
-        lines = f.read().splitlines()
-
-    for i in range(len(lines)):#xrange(1): #
-        print(i)
-        print(lines[i])
-        subject = lines[i].split('/')[-3]
-        experiments = lines[i].split('/')[-2]
-        filename = lines[i].split('/')[-1]
-        if experiments=='selfie': #multiview_neutral #multiview_expressions #multiview_occlusions #selfie
-            pass
-        else:
-            continue
-        # import ipdb; ipdb.set_trace()
-        distances = pre_dist[i]
-        print(distances)
-        distance_metric.append(distances)
-    computed_distances = {'computed_distances': distance_metric}
-    np.save("/ps/scratch/ssanyal/NoW_Dataset/comaprisons/NoW_website_validation/recheck_cvpr_submission/HMR_VGG2Ring_contranstive_R6_npy_resnet_fc3_dropout_Elr1e-04_kp-weight60_shp-weight1_encod_512_512_decode_l1_shp100exp50_nostg3_invrt_config_resfixed_alpha_0.5_srw_1e4_erw_1e4_scratch_batch32_68641/selfie.npy", computed_distances)
-
-
-# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    if challenge == '':
+        np.save(os.path.join(error_out_path, '%s_computed_distances.npy' % method_identifier), computed_distances)
+    else: 
+        np.save(os.path.join(error_out_path, '%s_computed_distances_%s.npy' % (method_identifier, challenge)), computed_distances)
 
 
 if __name__ == '__main__':
+    # Computation of the s2m error
     metric_computation()
+
+    # Generate cumulative error plots for multiple error files
     # generating_cumulative_error_plots()
-    # different_challenges()
