@@ -69,7 +69,9 @@ make
 The installation of Scan2Mesh is followed by the codebase provided by [flame-fitting](https://github.com/Rubikplayer/flame-fitting).
 Please check that repository for more detailed instructions on Scan2Mesh installation.
 
-## Evaluation (validation set)
+## Evaluation
+
+#### Error computation
 
 Download the NoW Dataset and the validation set scans from the [Now webiste](https://ringnet.is.tue.mpg.de/downloads), predict 3D faces for all validation images, and then run the NoW evaluation on the validation set by
 ```
@@ -87,10 +89,9 @@ gt_lmk_folder = path to the scan landmarks
 ```
 The predicted_mesh_folder should in a similar structure as mentioned in the [RingNet](https://ringnet.is.tue.mpg.de) website.
 
-Cumulative error curves from the computed error metric can be also generated from the main.py file.
-The corresponding function is generating_cumulative_error_plots().
+#### Visualization
 
-Please change the paths accordingly in generating_cumulative_error_plots().
+Visualization of the reconstruction error is best done with a cumulative error curve. To generate a cumulative error plot, adapt the paths in the function generating_cumulative_error_plots() in the main.py and run the script. 
 
 **Note that ground truth scans are only provided for the validation set. In order to participate in the NoW challenge, please submit the test set predictions to ringnet@tue.mpg.de as described [here](https://ringnet.is.tue.mpg.de/challenge)**.
 
