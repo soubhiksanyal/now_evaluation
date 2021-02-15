@@ -98,11 +98,9 @@ Please change the paths accordingly in generating_cumulative_error_plots().
 
 By using the model or the code code, you acknowledge that you have read the license terms of [RingNet](https://ringnet.is.tue.mpg.de/license), understand them, and agree to be bound by them. If you do not agree with these terms and conditions, you must not use the code.
 
-## Referencing the codebase and RingNet
+## Citing
 
-Please note this codebase was developed for the [RingNet project](https://github.com/soubhiksanyal/RingNet).
-Please cite the following paper if you use the code directly or indirectly in your research/projects.
-
+This codebase was developed for evaluation of the [RingNet project](https://github.com/soubhiksanyal/RingNet). When using the code or NoW evaluation results in a scientific publication, please cite
 ```
 @inproceedings{RingNet:CVPR:2019,
 title = {Learning to Regress 3D Face Shape and Expression from an Image without 3D Supervision},
