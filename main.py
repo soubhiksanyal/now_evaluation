@@ -78,7 +78,6 @@ def generating_cumulative_error_plots():
 
     for i in range(len(method_identifiers)):
         print('%s - median: %f, mean: %f, std: %f' % (method_identifiers[i], np.median(np.hstack(method_errors[i])), np.mean(np.hstack(method_errors[i])), np.std(np.hstack(method_errors[i]))))
-    return
 
     cumulative_errors = []
     for error in method_errors:
