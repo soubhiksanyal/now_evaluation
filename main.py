@@ -60,16 +60,25 @@ def cumulative_error(errors, nbins=100000):
     return (base[:-1], cumulative)
 
 def generating_cumulative_error_plots():
+    """
+    Generate cumulative error plots for a list of errors. 
+    """
+
     # List of method identifiers, used as method name within the polot
     method_identifiers = []
     # List of paths to the error files (must be of same order than the method identifiers)
-    method_error_fnames = [ ]
+    method_error_fnames = []
+
     # Output cumulative error image filename
     out_fname = ''
 
     method_errors = []
     for fname in method_error_fnames:
         method_errors.append(np.load(fname, allow_pickle=True, encoding="latin1").item()['computed_distances'])
+
+    for i in range(len(method_identifiers)):
+        print('%s - median: %f, mean: %f, std: %f' % (method_identifiers[i], np.median(np.hstack(method_errors[i])), np.mean(np.hstack(method_errors[i])), np.std(np.hstack(method_errors[i]))))
+    return
 
     cumulative_errors = []
     for error in method_errors:
@@ -100,6 +109,10 @@ def compute_error_metric(gt_path, gt_lmk_path, predicted_mesh_path, predicted_lm
     return np.stack(distances)
 
 def metric_computation():
+    """
+    Compute the NoW 3D reconstruction error. 
+    """
+
     # Path of the meshes predicted for the NoW challenge
     predicted_mesh_folder = ''
     # Identifier of the method which is used as filename for the output error file
@@ -145,8 +158,9 @@ def metric_computation():
         print('Processing %d of %d (%s, %s, %s)' % (i+1, len(lines), subject, experiments, filename))
 
         predicted_mesh_path = os.path.join(predicted_mesh_folder, subject, experiments, filename[:-4] + '.obj')
-        predicted_landmarks_path = os.path.join(predicted_mesh_folder, subject, experiments, filename[:-4] + '.npy')
-        
+        predicted_landmarks_path_npy = os.path.join(predicted_mesh_folder, subject, experiments, filename[:-4] + '.npy')
+        predicted_landmarks_path_txt = os.path.join(predicted_mesh_folder, subject, experiments, filename[:-4] + '.txt')       
+
         gt_mesh_path = glob(gt_mesh_folder + subject + '/' + '*.obj')[0]
         gt_lmk_path = (glob(gt_lmk_folder + subject + '/' + '*.pp')[0])
 
@@ -154,17 +168,19 @@ def metric_computation():
             print('Predicted mesh not found - Resulting error is insufficient for comparison')
             print(predicted_mesh_path)
             continue
-        if not os.path.exists(predicted_landmarks_path):
+        if not os.path.exists(predicted_landmarks_path_npy) and not os.path.exists(predicted_landmarks_path_txt):
             print('Predicted mesh landmarks not found - Resulting error is insufficient for comparison')
-            print(predicted_landmarks_path)
             continue
 
         predicted_mesh = Mesh(filename=predicted_mesh_path)
-        predicted_lmks = np.load(predicted_landmarks_path)
+
+        if os.path.exists(predicted_landmarks_path_npy):
+            predicted_lmks = np.load(predicted_landmarks_path_npy)
+        else:
+            predicted_lmks = load_txt(predicted_landmarks_path_txt)
 
         distances = compute_error_metric(gt_mesh_path, gt_lmk_path, predicted_mesh, predicted_lmks)
         print(distances)
-        return
         
         distance_metric.append(distances)
     computed_distances = {'computed_distances': distance_metric}

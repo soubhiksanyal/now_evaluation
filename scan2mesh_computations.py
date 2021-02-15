@@ -50,7 +50,6 @@ def rigid_scan_2_mesh_alignment(scan, mesh, visualize=False):
             pass
 
     ch.minimize(fun={'dist': s2m, 's_reg': 100*(ch.abs(s)-s)}, x0=[s, r, t], callback=on_show, options=options)
-    # ch.minimize(fun={'dist': s2m, 's_reg': 0.001*(s-0)}, x0=[s, r, t], callback=on_show, options=options)
     return s,Rodrigues(r),t
 
 
