@@ -73,7 +73,7 @@ Please check that repository for more detailed instructions on Scan2Mesh install
 
 #### Error computation
 
-Download the NoW Dataset and the validation set scans from the [Now webiste](https://ringnet.is.tue.mpg.de/downloads), predict 3D faces for all validation images, and then run the NoW evaluation on the validation set by
+Download the NoW Dataset and the validation set scans from the [Now websiste](https://ringnet.is.tue.mpg.de/downloads), predict 3D faces for all validation images, and then run the NoW evaluation on the validation set by
 ```
 python main.py
 ```
