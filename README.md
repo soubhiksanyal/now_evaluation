@@ -92,7 +92,7 @@ The predicted_mesh_folder should in a similar structure as mentioned in the [Rin
 Prior to computing the point-to-surface distance, a rigid alignment between each predicted mesh and the scan is computed. The rigid alignment computation requires for each predicted mesh a file with following 7 landmarks:
 
 <p align="center"> 
-<img src="data/landmarks_7_annotated.png" width="50%">
+<img src="landmarks_7_annotated.png" width="50%">
 </p>
 
 
