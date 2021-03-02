@@ -89,6 +89,13 @@ gt_lmk_folder = path to the scan landmarks
 ```
 The predicted_mesh_folder should in a similar structure as mentioned in the [RingNet](https://ringnet.is.tue.mpg.de) website.
 
+Prior to computing the point-to-surface distance, a rigid alignment between each predicted mesh and the scan is computed. The rigid alignment computation requires for each predicted mesh a file with following 7 landmarks:
+
+<p align="center"> 
+<img src="data/landmarks_7_annotated.png" width="50%">
+</p>
+
+
 #### Visualization
 
 Visualization of the reconstruction error is best done with a cumulative error curve. To generate a cumulative error plot, adapt the paths in the function generating_cumulative_error_plots() in the main.py and run the script. 
