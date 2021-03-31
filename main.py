@@ -59,19 +59,13 @@ def cumulative_error(errors, nbins=100000):
     cumulative = 100.0*cumsum/float(errors.shape[0])
     return (base[:-1], cumulative)
 
-def generating_cumulative_error_plots():
+def generating_cumulative_error_plots(method_error_fnames: list, method_identifiers: list, out_fname : str):
     """
-    Generate cumulative error plots for a list of errors. 
+    Generate cumulative error plots for a list of errors.
+    :param method_error_fnames list of benchmark output files
+    :param method_identifiers list of names of methods that created the output files in the order corresdponding to method_error_fnames
+    :param out_fname output plot filename
     """
-
-    # List of method identifiers, used as method name within the polot
-    method_identifiers = []
-    # List of paths to the error files (must be of same order than the method identifiers)
-    method_error_fnames = []
-
-    # Output cumulative error image filename
-    out_fname = ''
-
     method_errors = []
     for fname in method_error_fnames:
         method_errors.append(np.load(fname, allow_pickle=True, encoding="latin1").item()['computed_distances'])
@@ -254,8 +248,7 @@ if __name__ == '__main__':
     imgs_list = None
     challenge = ''
 
-    metric_computation(dataset_folder, predicted_mesh_folder, gt_mesh_folder, gt_lmk_folder, image_set,
-                       imgs_list,
+    metric_computation(dataset_folder, predicted_mesh_folder, gt_mesh_folder, gt_lmk_folder, image_set, imgs_list,
                        challenge=challenge,
                        error_out_path=error_out_path,
                        method_identifier=method_identifier

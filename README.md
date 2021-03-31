@@ -78,15 +78,8 @@ Download the NoW Dataset and the validation set scans from the [Now websiste](ht
 python main.py
 ```
 
-The function in metric_computation() in main.py is used to compute the error metric. Please change the paths in metric_computation() as following,
+The function in `metric_computation()` in `main.py` is used to compute the error metric. You can run `python main.py <dataset_folder> <predicted_mesh_folder> <validatton_or_test_set>`. For more options please see `main.py`
 
-```
-predicted_mesh_folder =  path to predicted mesh folder
-imgs_list = path to the test or validation image list downloaded from the ringnet website
-
-gt_mesh_folder =  path to the ground truth scans
-gt_lmk_folder = path to the scan landmarks
-```
 The predicted_mesh_folder should in a similar structure as mentioned in the [RingNet](https://ringnet.is.tue.mpg.de) website.
 
 Prior to computing the point-to-surface distance, a rigid alignment between each predicted mesh and the scan is computed. The rigid alignment computation requires for each predicted mesh a file with following 7 landmarks:
@@ -98,7 +91,7 @@ Prior to computing the point-to-surface distance, a rigid alignment between each
 
 #### Visualization
 
-Visualization of the reconstruction error is best done with a cumulative error curve. To generate a cumulative error plot, adapt the paths in the function generating_cumulative_error_plots() in the main.py and run the script. 
+Visualization of the reconstruction error is best done with a cumulative error curve. To generate a cumulative error plot, call `generating_cumulative_error_plots()` in the `main.py` with the list of output files and the corresponding list method names. 
 
 **Note that ground truth scans are only provided for the validation set. In order to participate in the NoW challenge, please submit the test set predictions to ringnet@tue.mpg.de as described [here](https://ringnet.is.tue.mpg.de/challenge)**.
 
