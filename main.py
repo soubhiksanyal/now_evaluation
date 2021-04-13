@@ -59,19 +59,13 @@ def cumulative_error(errors, nbins=100000):
     cumulative = 100.0*cumsum/float(errors.shape[0])
     return (base[:-1], cumulative)
 
-def generating_cumulative_error_plots():
+def generating_cumulative_error_plots(method_error_fnames: list, method_identifiers: list, out_fname : str):
     """
-    Generate cumulative error plots for a list of errors. 
+    Generate cumulative error plots for a list of errors.
+    :param method_error_fnames list of benchmark output files
+    :param method_identifiers list of names of methods that created the output files in the order corresdponding to method_error_fnames
+    :param out_fname output plot filename
     """
-
-    # List of method identifiers, used as method name within the polot
-    method_identifiers = []
-    # List of paths to the error files (must be of same order than the method identifiers)
-    method_error_fnames = []
-
-    # Output cumulative error image filename
-    out_fname = ''
-
     method_errors = []
     for fname in method_error_fnames:
         method_errors.append(np.load(fname, allow_pickle=True, encoding="latin1").item()['computed_distances'])
@@ -107,29 +101,58 @@ def compute_error_metric(gt_path, gt_lmk_path, predicted_mesh_path, predicted_lm
                                           predicted_mesh.f, predicted_mesh_landmark_points)
     return np.stack(distances)
 
-def metric_computation():
-    """
-    Compute the NoW 3D reconstruction error. 
-    """
-
+def metric_computation(dataset_folder,
+                       predicted_mesh_folder,
+                       gt_mesh_folder=None,
+                       gt_lmk_folder=None,
+                       image_set='val',
+                       imgs_list=None,
+                       challenge='',
+                       error_out_path=None,
+                       method_identifier=''):
+    '''
+    :param dataset_folder: Path to root of the dataset, which contains images, scans and lanmarks
+    :param predicted_mesh_folder: Path to predicted restuls to be evaluated
+    :param gt_mesh_folder: Optional. Path to the GT scans. If not specified, it will be looked for in the dataset folder
+    :param gt_lmk_folder: Optional. Path to the GT landmarks. If not specified, it will be looked for in the dataset folder
+    :param image_set: 'val' or 'test'. This specifies which images will be used. Ignored if imgs_list is specified
+    :param imgs_list: Optional. Path to file with image list to be used
+    :param challenge:
+    :param error_out_path: Optional. Path to results folder. If None, results will be saved to predicted_mesh_folder
+    :param method_identifier: Optional. Will be used to name the output file
+    '''
     # Path of the meshes predicted for the NoW challenge
-    predicted_mesh_folder = ''
-    # Identifier of the method which is used as filename for the output error file
-    method_identifier = ''
+    if not os.path.isdir(predicted_mesh_folder):
+        raise RuntimeError(f"Predicted mesh folder does not exist. '{predicted_mesh_folder}'")
+
+    if not os.path.isdir(dataset_folder):
+        raise RuntimeError(f"Dataset folder does not exist. '{dataset_folder}'")
+
+    # Image list, for the NoW validation data, this file can be downloaded from here: https://ringnet.is.tue.mpg.de/downloads
+    if imgs_list is None or imgs_list == '':
+        if image_set == 'val':
+            imgs_list = os.path.join(dataset_folder, "imagepathsvalidation.txt")
+        elif image_set == 'test':
+            imgs_list = os.path.join(dataset_folder, "imagepathstest.txt")
+        else:
+            print(f"Invalid image set identifier '{image_set}'.")
+
+    # Path of the ground truth scans
+    gt_mesh_folder = gt_mesh_folder or os.path.join(dataset_folder, 'scans')
+    # Path of the ground truth scan landmarks
+    gt_lmk_folder = gt_lmk_folder or os.path.join(dataset_folder, 'scans_lmks_onlypp')
 
     # Output path for the computed error
-    error_out_path = ''
+    if error_out_path is None or error_out_path == '':
+        error_out_path = os.path.join(predicted_mesh_folder, "results")
+
+    os.makedirs(error_out_path, exist_ok=True)
 
     # If empty, error across all challenges (i.e. multiview_neutral, multiview_expressions, multiview_occlusions, or selfie) is computed. 
     # If challenge \in {'multiview_neutral', 'multiview_expressions', 'multiview_occlusions', 'selfie'}, only results of the specified challenge are considered
-    challenge = ''
-
-    # Path of the ground truth scans
-    gt_mesh_folder = ''
-    # Path of the ground truth scan landmarks
-    gt_lmk_folder = ''
-    # Image list, for the NoW validation data, this file can be downloaded from here: https://ringnet.is.tue.mpg.de/downloads
-    imgs_list = ''
+    valid_challenges = ['', 'multiview_neutral', 'multiview_expressions', 'multiview_occlusions', 'selfie']
+    if challenge not in valid_challenges:
+        raise ValueError(f"Invalid challenge value '{challenge}'. Accepted values are: {', '.join(valid_challenges)}")
 
     if not os.path.exists(predicted_mesh_folder):
         print('Predicted mesh path not found - %s' % predicted_mesh_folder)
@@ -160,8 +183,8 @@ def metric_computation():
         predicted_landmarks_path_npy = os.path.join(predicted_mesh_folder, subject, experiments, filename[:-4] + '.npy')
         predicted_landmarks_path_txt = os.path.join(predicted_mesh_folder, subject, experiments, filename[:-4] + '.txt')       
 
-        gt_mesh_path = glob(gt_mesh_folder + subject + '/' + '*.obj')[0]
-        gt_lmk_path = (glob(gt_lmk_folder + subject + '/' + '*.pp')[0])
+        gt_mesh_path = glob(os.path.join(gt_mesh_folder, subject, '*.obj'))[0]
+        gt_lmk_path = (glob(os.path.join(gt_lmk_folder, subject, '*.pp'))[0])
 
         if not os.path.exists(predicted_mesh_path):
             print('Predicted mesh not found - Resulting error is insufficient for comparison')
@@ -191,7 +214,45 @@ def metric_computation():
 
 if __name__ == '__main__':
     # Computation of the s2m error
-    metric_computation()
+
+    nargs = len(sys.argv)
+
+    dataset_folder = sys.argv[1]
+    predicted_mesh_folder = sys.argv[2]
+
+    if nargs > 3:
+        image_set = sys.argv[3]
+    else:
+        image_set = 'val'
+
+    if nargs > 4:
+        error_out_path = sys.argv[4]
+    else:
+        error_out_path = None
+
+    if nargs > 5:
+        method_identifier = sys.argv[5]
+    else:
+        method_identifier = ''
+
+    if nargs > 6:
+        gt_mesh_folder = sys.argv[6]
+    else:
+        gt_mesh_folder = None
+
+    if nargs > 7:
+        gt_lmk_folder = sys.argv[7]
+    else:
+        gt_lmk_folder = None
+
+    imgs_list = None
+    challenge = ''
+
+    metric_computation(dataset_folder, predicted_mesh_folder, gt_mesh_folder, gt_lmk_folder, image_set, imgs_list,
+                       challenge=challenge,
+                       error_out_path=error_out_path,
+                       method_identifier=method_identifier
+                       )
 
     # Generate cumulative error plots for multiple error files
     # generating_cumulative_error_plots()
