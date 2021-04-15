@@ -75,10 +75,10 @@ Please check that repository for more detailed instructions on Scan2Mesh install
 
 Download the NoW Dataset and the validation set scans from the [Now websiste](https://ringnet.is.tue.mpg.de/downloads), predict 3D faces for all validation images, and then run the NoW evaluation on the validation set by
 ```
-python main.py
+python compute_error.py
 ```
 
-The function in `metric_computation()` in `main.py` is used to compute the error metric. You can run `python main.py <dataset_folder> <predicted_mesh_folder> <validatton_or_test_set>`. For more options please see `main.py`
+The function in `metric_computation()` in `compute_error.py` is used to compute the error metric. You can run `python compute_error.py <dataset_folder> <predicted_mesh_folder> <validatton_or_test_set>`. For more options please see `compute_error.py`
 
 The predicted_mesh_folder should in a similar structure as mentioned in the [RingNet](https://ringnet.is.tue.mpg.de) website.
 
@@ -91,7 +91,7 @@ Prior to computing the point-to-surface distance, a rigid alignment between each
 
 #### Visualization
 
-Visualization of the reconstruction error is best done with a cumulative error curve. To generate a cumulative error plot, call `generating_cumulative_error_plots()` in the `main.py` with the list of output files and the corresponding list method names. 
+Visualization of the reconstruction error is best done with a cumulative error curve. To generate a cumulative error plot, call `generating_cumulative_error_plots()` in the `cumulative_errors.py` with the list of output files and the corresponding list method names. 
 
 **Note that ground truth scans are only provided for the validation set. In order to participate in the NoW challenge, please submit the test set predictions to ringnet@tue.mpg.de as described [here](https://ringnet.is.tue.mpg.de/challenge)**.
 
