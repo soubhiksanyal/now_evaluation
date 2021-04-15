@@ -52,46 +52,6 @@ def load_txt(fname):
     lmks = landmarks
     return lmks
 
-def cumulative_error(errors, nbins=100000):
-    errors = errors.ravel()
-    values, base = np.histogram(errors, bins=nbins) #values, base = np.histogram(1000*errors, bins=nbins)
-    cumsum = np.array(np.cumsum(values), dtype=float)
-    cumulative = 100.0*cumsum/float(errors.shape[0])
-    return (base[:-1], cumulative)
-
-def generating_cumulative_error_plots(method_error_fnames: list, method_identifiers: list, out_fname : str):
-    """
-    Generate cumulative error plots for a list of errors.
-    :param method_error_fnames list of benchmark output files
-    :param method_identifiers list of names of methods that created the output files in the order corresdponding to method_error_fnames
-    :param out_fname output plot filename
-    """
-    method_errors = []
-    for fname in method_error_fnames:
-        method_errors.append(np.load(fname, allow_pickle=True, encoding="latin1").item()['computed_distances'])
-
-    for i in range(len(method_identifiers)):
-        print('%s - median: %f, mean: %f, std: %f' % (method_identifiers[i], np.median(np.hstack(method_errors[i])), np.mean(np.hstack(method_errors[i])), np.std(np.hstack(method_errors[i]))))
-
-    cumulative_errors = []
-    for error in method_errors:
-        cumulative_errors.append(cumulative_error(np.hstack(error)))
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.set_xlim([0, 8])
-    ax.set_xticks(np.arange(0, 8, 1.0))
-    ax.set_ylim([0, 100])
-    ax.set_yticks(np.arange(0, 101, 20.0))
-
-    for i, method_id in enumerate(method_identifiers):
-        plt.plot(cumulative_errors[i][0], cumulative_errors[i][1], label = method_id)
-
-    plt.xlabel('Error [mm]', fontsize=12)
-    plt.ylabel('Percentage', fontsize=12)
-    lgd = ax.legend(loc='lower right')
-    plt.savefig(out_fname)
-
 def compute_error_metric(gt_path, gt_lmk_path, predicted_mesh_path, predicted_lmk_path):
     groundtruth_scan = Mesh(filename=gt_path)
     grundtruth_landmark_points = load_pp(gt_lmk_path)
@@ -125,7 +85,7 @@ def metric_computation(dataset_folder,
     if not os.path.isdir(predicted_mesh_folder):
         raise RuntimeError(f"Predicted mesh folder does not exist. '{predicted_mesh_folder}'")
 
-    if not os.path.isdir(dataset_folder):
+    if (imgs_list is None and gt_mesh_folder is None and gt_lmk_folder is None) and not os.path.isdir(dataset_folder):
         raise RuntimeError(f"Dataset folder does not exist. '{dataset_folder}'")
 
     # Image list, for the NoW validation data, this file can be downloaded from here: https://ringnet.is.tue.mpg.de/downloads
@@ -211,7 +171,6 @@ def metric_computation(dataset_folder,
     else: 
         np.save(os.path.join(error_out_path, '%s_computed_distances_%s.npy' % (method_identifier, challenge)), computed_distances)
 
-
 if __name__ == '__main__':
     # Computation of the s2m error
 
@@ -253,6 +212,3 @@ if __name__ == '__main__':
                        error_out_path=error_out_path,
                        method_identifier=method_identifier
                        )
-
-    # Generate cumulative error plots for multiple error files
-    # generating_cumulative_error_plots()
