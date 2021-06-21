@@ -52,10 +52,71 @@ def rigid_scan_2_mesh_alignment(scan, mesh, visualize=False):
     ch.minimize(fun={'dist': s2m, 's_reg': 100*(ch.abs(s)-s)}, x0=[s, r, t], callback=on_show, options=options)
     return s,Rodrigues(r),t
 
+def compute_mask(grundtruth_landmark_points):
+    """
+    Computes a circular area around the center of the face.
+    :param grundtruth_landmark_points: Landmarks of the ground truth scans
+    :return face center and mask radius
+    """
+
+    #  Take the nose-bottom and go upwards a bit:
+    nose_bottom = np.array(grundtruth_landmark_points[4])
+    nose_bridge = (np.array(grundtruth_landmark_points[1]) + np.array(grundtruth_landmark_points[2])) / 2  # between the inner eye corners
+    face_centre = nose_bottom + 0.3 * (nose_bridge - nose_bottom)
+    # Compute the radius for the face mask:
+    outer_eye_dist = np.linalg.norm(np.array(grundtruth_landmark_points[0]) - np.array(grundtruth_landmark_points[3]))
+    nose_dist = np.linalg.norm(nose_bridge - nose_bottom)
+    # mask_radius = 1.2 * (outer_eye_dist + nose_dist) / 2
+    mask_radius = 1.4 * (outer_eye_dist + nose_dist) / 2
+    return (face_centre, mask_radius)
+
+def crop_face_scan(groundtruth_vertices, groundtruth_faces, grundtruth_landmark_points):
+    """
+    Crop face scan to a circular area around the center of the face.
+    :param groundtruth_vertices: An n x 3 numpy array of vertices from a ground truth scan.
+    :param groundtruth_faces: Faces of the ground truth scan
+    :param grundtruth_landmark_points: A 7 x 3 list with annotations of the ground truth scan.
+    return: Cropped face scan
+    """
+
+    # Compute mask
+    face_centre, mask_radius = compute_mask(grundtruth_landmark_points)
+
+    # Compute mask vertex indiced
+    dist = np.linalg.norm(groundtruth_vertices-face_centre, axis=1)
+    ids = np.where(dist <= mask_radius)[0]
+
+    # Mask scan
+    masked_gt_scan = Mesh(v=groundtruth_vertices, f=groundtruth_faces)
+    masked_gt_scan.keep_vertices(ids)
+    return masked_gt_scan
+
+def compute_rigid_alignment(masked_gt_scan, grundtruth_landmark_points, 
+                            predicted_mesh_vertices, predicted_mesh_faces, predicted_mesh_landmark_points):
+    """
+    Computes the rigid alignment between the 
+    :param masked_gt_scan: Masked face area mesh
+    :param grundtruth_landmark_points: A 7 x 3 list with annotations of the ground truth scan.
+    :param predicted_mesh_vertices: An m x 3 numpy array of vertices from a predicted mesh.
+    :param predicted_mesh_faces: A k x 3 numpy array of vertex indices composing the predicted mesh.
+    :param predicted_mesh_landmark_points: A 7 x 3 list containing the annotated 3D point locations in the predicted mesh.
+    """
+
+    grundtruth_landmark_points = np.array(grundtruth_landmark_points)
+    predicted_mesh_landmark_points = np.array(predicted_mesh_landmark_points)
+
+    d, Z, tform = procrustes(grundtruth_landmark_points, predicted_mesh_landmark_points, scaling=True, reflection='best')
+
+    # Use tform to transform all vertices in predicted_mesh_vertices to the ground truth reference space:
+    predicted_mesh_vertices_aligned = tform['scale']*(tform['rotation'].T.dot(predicted_mesh_vertices.T).T) + tform['translation']
+
+    # Refine rigid alignment
+    s , R, t = rigid_scan_2_mesh_alignment(masked_gt_scan, Mesh(predicted_mesh_vertices_aligned, predicted_mesh_faces))
+    predicted_mesh_vertices_aligned = s*(R.dot(predicted_mesh_vertices_aligned.T)).T + t
+    return (predicted_mesh_vertices_aligned, masked_gt_scan)
 
 def compute_errors(groundtruth_vertices, groundtruth_faces, grundtruth_landmark_points, predicted_mesh_vertices,
-                                       predicted_mesh_faces,
-                                       predicted_mesh_landmark_points):
+                    predicted_mesh_faces, predicted_mesh_landmark_points, check_alignment=False):
     """
     This script computes the reconstruction error between an input mesh and a ground truth mesh.
     :param groundtruth_vertices: An n x 3 numpy array of vertices from a ground truth scan.
@@ -63,68 +124,97 @@ def compute_errors(groundtruth_vertices, groundtruth_faces, grundtruth_landmark_
     :param predicted_mesh_vertices: An m x 3 numpy array of vertices from a predicted mesh.
     :param predicted_mesh_faces: A k x 3 numpy array of vertex indices composing the predicted mesh.
     :param predicted_mesh_landmark_points: A 7 x 3 list containing the annotated 3D point locations in the predicted mesh.
+    :param check_alignment [optional]: Returns aligned reconstruction and cropped ground truth scan
     :return: A list of distances (errors)
     """
 
-    # from body.alignment.objectives import sample_from_mesh
-    # from psbody.mesh import Mesh
-    # from body.ch.mesh_distance import ScanToMesh
+    # Crop face scan
+    masked_gt_scan = crop_face_scan(groundtruth_vertices, groundtruth_faces, grundtruth_landmark_points)
 
-    # Do procrustes based on the 7 points:
+    # Rigidly align predicted mesh with the ground truth scan
+    predicted_mesh_vertices_aligned, masked_gt_scan = compute_rigid_alignment(  masked_gt_scan, grundtruth_landmark_points, 
+                                                                                predicted_mesh_vertices, predicted_mesh_faces, 
+                                                                                predicted_mesh_landmark_points)
 
-    d, Z, tform = procrustes(np.array(grundtruth_landmark_points), np.array(predicted_mesh_landmark_points),
-                             scaling=True, reflection='best')
-    # Use tform to transform all vertices in predicted_mesh_vertices to the ground truth reference space:
-    predicted_mesh_vertices_aligned = []
-    # import ipdb; ipdb.set_trace()
-    for v in predicted_mesh_vertices:
-        s = tform['scale']
-        R = tform['rotation']
-        t = tform['translation']
-        transformed_vertex = s * np.dot(v, R) + t
-        predicted_mesh_vertices_aligned.append(transformed_vertex)
+    # Compute error
+    sampler = sample_from_mesh(masked_gt_scan, sample_type='vertices')
+    s2m = ScanToMesh(masked_gt_scan, predicted_mesh_vertices_aligned, predicted_mesh_faces, scan_sampler=sampler, signed=False, normalize=False)
+    return s2m.r
 
-    # Compute the mask: A circular area around the center of the face. Take the nose-bottom and go upwards a bit:
-    nose_bottom = np.array(grundtruth_landmark_points[4])
-    nose_bridge = (np.array(grundtruth_landmark_points[1]) + np.array(
-        grundtruth_landmark_points[2])) / 2  # between the inner eye corners
-    face_centre = nose_bottom + 0.3 * (nose_bridge - nose_bottom)
-    # Compute the radius for the face mask:
-    outer_eye_dist = np.linalg.norm(np.array(grundtruth_landmark_points[0]) - np.array(grundtruth_landmark_points[3]))
-    nose_dist = np.linalg.norm(nose_bridge - nose_bottom)
-    # mask_radius = 1.2 * (outer_eye_dist + nose_dist) / 2
-    mask_radius = 1.4 * (outer_eye_dist + nose_dist) / 2
+# Deprecated function used to compute all NoW results. Replaced by above
+# def compute_errors(groundtruth_vertices, groundtruth_faces, grundtruth_landmark_points, predicted_mesh_vertices,
+#                                        predicted_mesh_faces,
+#                                        predicted_mesh_landmark_points):
+#     """
+#     This script computes the reconstruction error between an input mesh and a ground truth mesh.
+#     :param groundtruth_vertices: An n x 3 numpy array of vertices from a ground truth scan.
+#     :param grundtruth_landmark_points: A 7 x 3 list with annotations of the ground truth scan.
+#     :param predicted_mesh_vertices: An m x 3 numpy array of vertices from a predicted mesh.
+#     :param predicted_mesh_faces: A k x 3 numpy array of vertex indices composing the predicted mesh.
+#     :param predicted_mesh_landmark_points: A 7 x 3 list containing the annotated 3D point locations in the predicted mesh.
+#     :return: A list of distances (errors)
+#     """
 
-    # Find all the vertex indices in the ground truth scan that lie within the mask area:
-    vertex_indices_mask = []  # vertex indices in the source mesh (the ground truth scan)
-    points_on_groundtruth_scan_to_measure_from = []
-    for vertex_idx, vertex in enumerate(groundtruth_vertices):
-        dist = np.linalg.norm(vertex - face_centre) # We use Euclidean distance for the mask area for now.
-        if dist <= mask_radius:
-            vertex_indices_mask.append(vertex_idx)
-            points_on_groundtruth_scan_to_measure_from.append(vertex)
-    assert len(vertex_indices_mask) == len(points_on_groundtruth_scan_to_measure_from)
+#     # from body.alignment.objectives import sample_from_mesh
+#     # from psbody.mesh import Mesh
+#     # from body.ch.mesh_distance import ScanToMesh
 
-    predicted_mesh_vertices_aligned_array = np.array(predicted_mesh_vertices_aligned)
-    aligned_mesh = Mesh(v=predicted_mesh_vertices_aligned_array, f=predicted_mesh_faces)
+#     # Do procrustes based on the 7 points:
 
-    gt_scan = Mesh(v=groundtruth_vertices, f=groundtruth_faces)
-    gt_scan.keep_vertices(vertex_indices_mask)
+#     d, Z, tform = procrustes(np.array(grundtruth_landmark_points), np.array(predicted_mesh_landmark_points),
+#                              scaling=True, reflection='best')
 
-    s , r, t = rigid_scan_2_mesh_alignment(gt_scan, aligned_mesh)
-    trafo_mesh = s*(r.dot(aligned_mesh.v.T)).T + t
+#     # Use tform to transform all vertices in predicted_mesh_vertices to the ground truth reference space:
+#     predicted_mesh_vertices_aligned = []
+#     # import ipdb; ipdb.set_trace()
+#     for v in predicted_mesh_vertices:
+#         s = tform['scale']
+#         R = tform['rotation']
+#         t = tform['translation']
+#         transformed_vertex = s * np.dot(v, R) + t
+#         predicted_mesh_vertices_aligned.append(transformed_vertex)
 
-    # Check the mesh alignment is correct or not
-    # gt_scan.write_obj('gt_scan_val.obj')
-    # aligned_mesh.write_obj('aligned_mesh_before_scan2mesh_alignment.obj')
-    # rigidly_aligned_mesh = Mesh(v=trafo_mesh, f=aligned_mesh.f)
-    # rigidly_aligned_mesh.write_obj('aligned_mesh.obj')
+#     # Compute the mask: A circular area around the center of the face. Take the nose-bottom and go upwards a bit:
+#     nose_bottom = np.array(grundtruth_landmark_points[4])
+#     nose_bridge = (np.array(grundtruth_landmark_points[1]) + np.array(
+#         grundtruth_landmark_points[2])) / 2  # between the inner eye corners
+#     face_centre = nose_bottom + 0.3 * (nose_bridge - nose_bottom)
+#     # Compute the radius for the face mask:
+#     outer_eye_dist = np.linalg.norm(np.array(grundtruth_landmark_points[0]) - np.array(grundtruth_landmark_points[3]))
+#     nose_dist = np.linalg.norm(nose_bridge - nose_bottom)
+#     # mask_radius = 1.2 * (outer_eye_dist + nose_dist) / 2
+#     mask_radius = 1.4 * (outer_eye_dist + nose_dist) / 2
 
-    sampler = sample_from_mesh(gt_scan, sample_type='vertices')
-    s2m = ScanToMesh(gt_scan, trafo_mesh, aligned_mesh.f, scan_sampler=sampler, signed=False, normalize=False)
-    distances = s2m.r#[sqrt(d2) for d2 in squared_distances]
+#     # Find all the vertex indices in the ground truth scan that lie within the mask area:
+#     vertex_indices_mask = []  # vertex indices in the source mesh (the ground truth scan)
+#     points_on_groundtruth_scan_to_measure_from = []
+#     for vertex_idx, vertex in enumerate(groundtruth_vertices):
+#         dist = np.linalg.norm(vertex - face_centre) # We use Euclidean distance for the mask area for now.
+#         if dist <= mask_radius:
+#             vertex_indices_mask.append(vertex_idx)
+#             points_on_groundtruth_scan_to_measure_from.append(vertex)
+#     assert len(vertex_indices_mask) == len(points_on_groundtruth_scan_to_measure_from)
 
-    return distances
+#     predicted_mesh_vertices_aligned_array = np.array(predicted_mesh_vertices_aligned)
+#     aligned_mesh = Mesh(v=predicted_mesh_vertices_aligned_array, f=predicted_mesh_faces)
+
+#     gt_scan = Mesh(v=groundtruth_vertices, f=groundtruth_faces)
+#     gt_scan.keep_vertices(vertex_indices_mask)
+
+#     s , r, t = rigid_scan_2_mesh_alignment(gt_scan, aligned_mesh)
+#     trafo_mesh = s*(r.dot(aligned_mesh.v.T)).T + t
+
+#     # Check the mesh alignment is correct or not
+#     # gt_scan.write_obj('gt_scan_val.obj')
+#     # aligned_mesh.write_obj('aligned_mesh_before_scan2mesh_alignment.obj')
+#     # rigidly_aligned_mesh = Mesh(v=trafo_mesh, f=aligned_mesh.f)
+#     # rigidly_aligned_mesh.write_obj('aligned_mesh.obj')
+
+#     sampler = sample_from_mesh(gt_scan, sample_type='vertices')
+#     s2m = ScanToMesh(gt_scan, trafo_mesh, aligned_mesh.f, scan_sampler=sampler, signed=False, normalize=False)
+#     distances = s2m.r#[sqrt(d2) for d2 in squared_distances]
+
+#     return distances
     
 
 def procrustes(X, Y, scaling=True, reflection='best'):
