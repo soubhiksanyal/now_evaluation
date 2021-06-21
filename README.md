@@ -82,7 +82,7 @@ python check_predictions.py <predicted_mesh_path>
 ```
 Running this loads the `<predicted_mesh_path>` mesh and exports it to `./predicted_mesh_export.obj`. Please check if this file can be loaded by e.g. [MeshLab](https://www.meshlab.net/) or any other mesh loader, and that the resulting mesh looks like the input mesh.
 
-***2) check that the landmarks for the predicted meshes are correct by running ***
+***2) check that the landmarks for the predicted meshes are correct by running***
 ```
 python check_predictions.py <predicted_mesh_path> <predicted_mesh_landmark_path> <gt_scan_path> <gt_lmk_path> 
 ```
