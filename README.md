@@ -71,9 +71,26 @@ Please check that repository for more detailed instructions on Scan2Mesh install
 
 ## Evaluation
 
+Download the NoW Dataset and the validation set scans from the [Now websiste](https://ringnet.is.tue.mpg.de/downloads), and predict 3D faces for all validation images.
+
+#### Check data setup
+
+Before running the now evaluation, 
+***1) check that the predicted meshes can be successfuly loaded by the used mesh loader by running***
+```
+python check_predictions.py <predicted_mesh_path>
+```
+Running this loads the `<predicted_mesh_path>` mesh and exports it to `./predicted_mesh_export.obj`. Please check if this file can be loaded by e.g. [MeshLab](https://www.meshlab.net/) or any other mesh loader, and that the resulting mesh looks like the input mesh.
+
+***2) check that the landmarks for the predicted meshes are correct by running ***
+```
+python check_predictions.py <predicted_mesh_path> <predicted_mesh_landmark_path> <gt_scan_path> <gt_lmk_path> 
+```
+Running this loads the `<predicted_mesh_path>` mesh, rigidly aligns it with the the scan `<gt_scan_path>`, and outputs the aligned mesh to `./predicted_mesh_aligned.obj`, and the cropped scan to `./cropped_scan.obj`. Please check if the output mesh and scan are rigidly aligned by jointly opening them in e.g. [MeshLab](https://www.meshlab.net/).
+
 #### Error computation
 
-Download the NoW Dataset and the validation set scans from the [Now websiste](https://ringnet.is.tue.mpg.de/downloads), predict 3D faces for all validation images, and then run the NoW evaluation on the validation set by
+To run the now evaluation on the validation set, run
 ```
 python compute_error.py
 ```
@@ -94,6 +111,10 @@ Prior to computing the point-to-surface distance, a rigid alignment between each
 Visualization of the reconstruction error is best done with a cumulative error curve. To generate a cumulative error plot, call `generating_cumulative_error_plots()` in the `cumulative_errors.py` with the list of output files and the corresponding list method names. 
 
 **Note that ground truth scans are only provided for the validation set. In order to participate in the NoW challenge, please submit the test set predictions to ringnet@tue.mpg.de as described [here](https://ringnet.is.tue.mpg.de/challenge)**.
+
+#### Known issues
+
+The used [mesh loader](https://github.com/MPI-IS/mesh) is unable to load OBJ files with vertex colors appended to the vertices. I.e. if the OBJ contains lines of the following format `v vx vy vz cr cg cb\n`, export the meshes without vertex colors.
 
 ## License
 
