@@ -71,7 +71,7 @@ Please check that repository for more detailed instructions on Scan2Mesh install
 
 ## Evaluation
 
-Download the NoW Dataset and the validation set scans from the [Now websiste](https://ringnet.is.tue.mpg.de/download.php), and predict 3D faces for all validation images.
+Download the NoW Dataset and the validation set scans from the [Now website](https://ringnet.is.tue.mpg.de/download.php), and predict 3D faces for all validation images.
 
 #### Check data setup
 
