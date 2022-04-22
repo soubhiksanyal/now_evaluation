@@ -1,6 +1,6 @@
 # NoW Evaluation
 
-This is the official repository for evaluation on the [NoW Benchmark Dataset](https://ringnet.is.tue.mpg.de/challenge.html). The goal of the NoW benchmark is to introduce a standard evaluation metric to measure the accuracy and robustness of 3D face reconstruction methods from a single image under variations in viewing angle, lighting, and common occlusions. 
+This is the official repository for evaluation on the [NoW Benchmark](https://now.is.tue.mpg.de). The goal of the NoW benchmark is to introduce a standard evaluation metric to measure the accuracy and robustness of 3D face reconstruction methods from a single image under variations in viewing angle, lighting, and common occlusions. 
 
 <p align="center"> 
 <img src="content_now_dataset.png">
@@ -8,7 +8,7 @@ This is the official repository for evaluation on the [NoW Benchmark Dataset](ht
 
 ## Evaluation metric
 
-Given a single monocular image, the challenge consists of reconstructing a 3D face. Since the predicted meshes occur in different local coordinate systems, the reconstructed 3D mesh is rigidly aligned (rotation, translation, and scaling) to the scan using a set of corresponding landmarks between the prediction and the scan. We further perform a rigid alignment based on the scan-to-mesh distance (which is the absolute distance between each scan vertex and the closest point in the mesh surface) between the ground truth scan, and the reconstructed mesh using the landmarks alignment as initialization. For more details, see the [NoW Website](https://ringnet.is.tue.mpg.de/challenge.html) or the [RingNet paper](https://ps.is.tuebingen.mpg.de/uploads_file/attachment/attachment/509/paper_camera_ready.pdf).
+Given a single monocular image, the challenge consists of reconstructing a 3D face. Since the predicted meshes occur in different local coordinate systems, the reconstructed 3D mesh is rigidly aligned (rotation, translation, and scaling) to the scan using a set of corresponding landmarks between the prediction and the scan. We further perform a rigid alignment based on the scan-to-mesh distance (which is the absolute distance between each scan vertex and the closest point in the mesh surface) between the ground truth scan, and the reconstructed mesh using the landmarks alignment as initialization. For more details, see the [NoW Website](https://now.is.tue.mpg.de) or the [RingNet paper](https://ps.is.tuebingen.mpg.de/uploads_file/attachment/attachment/509/paper_camera_ready.pdf).
 
 ```
 Learning to Regress 3D Face Shape and Expression from an Image without 3D Supervision
@@ -71,7 +71,7 @@ Please check that repository for more detailed instructions on Scan2Mesh install
 
 ## Evaluation
 
-Download the NoW Dataset and the validation set scans from the [Now website](https://ringnet.is.tue.mpg.de/download.php), and predict 3D faces for all validation images.
+Download the NoW Dataset and the validation set scans from the [NoW website](https://now.is.tue.mpg.de/download.php), and predict 3D faces for all validation images.
 
 #### Check data setup
 
@@ -97,7 +97,7 @@ python compute_error.py
 
 The function in `metric_computation()` in `compute_error.py` is used to compute the error metric. You can run `python compute_error.py <dataset_folder> <predicted_mesh_folder> <validatton_or_test_set>`. For more options please see `compute_error.py`
 
-The predicted_mesh_folder should in a similar structure as mentioned in the [RingNet](https://ringnet.is.tue.mpg.de) website.
+The predicted_mesh_folder should in a similar structure as mentioned in the [RingNet](https://now.is.tue.mpg.de/download.php) website.
 
 Prior to computing the point-to-surface distance, a rigid alignment between each predicted mesh and the scan is computed. The rigid alignment computation requires for each predicted mesh a file with following 7 landmarks:
 
@@ -110,7 +110,7 @@ Prior to computing the point-to-surface distance, a rigid alignment between each
 
 Visualization of the reconstruction error is best done with a cumulative error curve. To generate a cumulative error plot, call `generating_cumulative_error_plots()` in the `cumulative_errors.py` with the list of output files and the corresponding list method names. 
 
-**Note that ground truth scans are only provided for the validation set. In order to participate in the NoW challenge, please submit the test set predictions to ringnet@tue.mpg.de as described [here](https://ringnet.is.tue.mpg.de/challenge.html)**.
+**Note that ground truth scans are only provided for the validation set. In order to participate in the NoW challenge, please submit the test set predictions to ringnet@tue.mpg.de as described [here](https://now.is.tue.mpg.de/index.html)**.
 
 #### Known issues
 
@@ -118,7 +118,7 @@ The used [mesh loader](https://github.com/MPI-IS/mesh) is unable to load OBJ fil
 
 ## License
 
-By using the model or the code code, you acknowledge that you have read the license terms of [RingNet](https://ringnet.is.tue.mpg.de/license.html), understand them, and agree to be bound by them. If you do not agree with these terms and conditions, you must not use the code.
+By using the NoW dataset or code, you acknowledge that you have read the [license terms](https://now.is.tue.mpg.de/license.html), understand them, and agree to be bound by them. If you do not agree with these terms and conditions, you must not use the code.
 
 ## Citing
 
