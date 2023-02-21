@@ -49,7 +49,7 @@ def rigid_scan_2_mesh_alignment(scan, mesh, visualize=False):
         def on_show(_):
             pass
 
-    ch.minimize(fun={'dist': s2m, 's_reg': 100*(ch.abs(s)-s)}, x0=[s, r, t], callback=on_show, options=options)
+    ch.minimize(fun={'dist': s2m}, x0=[r, t], callback=on_show, options=options)
     return s,Rodrigues(r),t
 
 def compute_mask(grundtruth_landmark_points):
@@ -91,8 +91,19 @@ def crop_face_scan(groundtruth_vertices, groundtruth_faces, grundtruth_landmark_
     masked_gt_scan.keep_vertices(ids)
     return masked_gt_scan
 
+def get_unit_factor(unit):
+    # Scans are in unit mm, return the factor to scale the data in the input unit to mm. 
+    if unit == 'mm':
+        return 1.0
+    elif unit == 'cm':
+        return 10.0
+    elif unit == 'm':
+        return 1000.0
+    else:
+        raise ValueError('Unit %s not supported' % unit)
+
 def compute_rigid_alignment(masked_gt_scan, grundtruth_landmark_points, 
-                            predicted_mesh_vertices, predicted_mesh_faces, predicted_mesh_landmark_points, check_rigid_alignment=False):
+                            predicted_mesh_vertices, predicted_mesh_faces, predicted_mesh_landmark_points, predicted_mesh_unit='m', check_rigid_alignment=False):
     """
     Computes the rigid alignment between the 
     :param masked_gt_scan: Masked face area mesh
@@ -101,6 +112,8 @@ def compute_rigid_alignment(masked_gt_scan, grundtruth_landmark_points,
     :param predicted_mesh_faces: A k x 3 numpy array of vertex indices composing the predicted mesh.
     :param predicted_mesh_landmark_points: A 7 x 3 list containing the annotated 3D point locations in the predicted mesh.
     """
+    
+    scale_factor = get_unit_factor(predicted_mesh_unit)
 
     grundtruth_landmark_points = np.array(grundtruth_landmark_points)
     predicted_mesh_landmark_points = np.array(predicted_mesh_landmark_points)
@@ -108,7 +121,7 @@ def compute_rigid_alignment(masked_gt_scan, grundtruth_landmark_points,
     d, Z, tform = procrustes(grundtruth_landmark_points, predicted_mesh_landmark_points, scaling=True, reflection='best')
 
     # Use tform to transform all vertices in predicted_mesh_vertices to the ground truth reference space:
-    predicted_mesh_vertices_aligned = tform['scale']*(tform['rotation'].T.dot(predicted_mesh_vertices.T).T) + tform['translation']
+    predicted_mesh_vertices_aligned = scale_factor*(tform['rotation'].T.dot(predicted_mesh_vertices.T).T) + tform['translation']
 
     # Refine rigid alignment
     s , R, t = rigid_scan_2_mesh_alignment(masked_gt_scan, Mesh(predicted_mesh_vertices_aligned, predicted_mesh_faces))
@@ -123,7 +136,7 @@ def compute_rigid_alignment(masked_gt_scan, grundtruth_landmark_points,
     return (predicted_mesh_vertices_aligned, masked_gt_scan)
 
 def compute_errors(groundtruth_vertices, groundtruth_faces, grundtruth_landmark_points, predicted_mesh_vertices,
-                    predicted_mesh_faces, predicted_mesh_landmark_points, check_rigid_alignment=False):
+                    predicted_mesh_faces, predicted_mesh_landmark_points, predicted_mesh_unit, check_rigid_alignment=False):
     """
     This script computes the reconstruction error between an input mesh and a ground truth mesh.
     :param groundtruth_vertices: An n x 3 numpy array of vertices from a ground truth scan.
@@ -131,6 +144,7 @@ def compute_errors(groundtruth_vertices, groundtruth_faces, grundtruth_landmark_
     :param predicted_mesh_vertices: An m x 3 numpy array of vertices from a predicted mesh.
     :param predicted_mesh_faces: A k x 3 numpy array of vertex indices composing the predicted mesh.
     :param predicted_mesh_landmark_points: A 7 x 3 list containing the annotated 3D point locations in the predicted mesh.
+    :param predicted_mesh_unit: Unit of measurement of the predicted meshes in ['m', 'cm', 'mm']
     :param check_rigid_alignment [optional]: Returns aligned reconstruction and cropped ground truth scan
     :return: A list of distances (errors)
     """
@@ -142,6 +156,7 @@ def compute_errors(groundtruth_vertices, groundtruth_faces, grundtruth_landmark_
     predicted_mesh_vertices_aligned, masked_gt_scan = compute_rigid_alignment(  masked_gt_scan, grundtruth_landmark_points, 
                                                                                 predicted_mesh_vertices, predicted_mesh_faces, 
                                                                                 predicted_mesh_landmark_points,
+                                                                                predicted_mesh_unit,
                                                                                 check_rigid_alignment)
 
     # Compute error

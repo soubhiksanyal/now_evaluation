@@ -49,15 +49,15 @@ Clone the [flame-fitting](https://github.com/Rubikplayer/flame-fitting) reposito
 
 ```
 git clone https://github.com/Rubikplayer/flame-fitting.git
-cp flame-fitting/smpl_webuser now_evaluation/smpl_webuser -r
-cp flame-fitting/sbody now_evaluation/sbody -r
+cp -r flame-fitting/smpl_webuser now_evaluation/smpl_webuser
+cp -r flame-fitting/sbody now_evaluation/sbody
 ```
 
 Clone [Eigen](http://eigen.tuxfamily.org/index.php?title=Main_Page) and copy the it to the following folder 
 
 ```
 git clone https://gitlab.com/libeigen/eigen.git
-cp eigen now_evaluation/sbody/alignment/mesh_distance/eigen -r
+cp -r eigen now_evaluation/sbody/alignment/mesh_distance/eigen
 ```
 
 Edit the file 'now_evaluation/sbody/alignment/mesh_distance/setup.py' to set EIGEN_DIR to the location of Eigen. Then compile the code by following command
@@ -76,6 +76,7 @@ Download the NoW Dataset and the validation set scans from the [NoW website](htt
 #### Check data setup
 
 Before running the now evaluation, 
+
 ***1) check that the predicted meshes can be successfuly loaded by the used mesh loader by running***
 ```
 python check_predictions.py <predicted_mesh_path>
@@ -95,7 +96,7 @@ To run the now evaluation on the validation set, run
 python compute_error.py
 ```
 
-The function in `metric_computation()` in `compute_error.py` is used to compute the error metric. You can run `python compute_error.py <dataset_folder> <predicted_mesh_folder> <validatton_or_test_set>`. For more options please see `compute_error.py`
+The function in `metric_computation()` in `compute_error.py` is used to compute the error metric. In the most common setting you can run `python compute_error.py --predicted_mesh_folder <predicted_mesh_folder> --dataset_folder <dataset_folder>`. For more options please see `compute_error.py`
 
 The predicted_mesh_folder should in a similar structure as mentioned in the [RingNet](https://now.is.tue.mpg.de/download.php) website.
 

@@ -9,13 +9,31 @@ For comments or questions, please email us at ringnet@tue.mpg.de
 '''
 
 import os
-from glob import glob
 import sys
+import argparse
+from glob import glob
 import numpy as np
+import chumpy as ch
 import scan2mesh_computations as s2m_opt
+import scan2mesh_computations_metrical as s2m_opt_metrical
 import matplotlib.pyplot as plt
 from psbody.mesh import Mesh
-import chumpy as ch
+
+def clean_degenerated_faces(mesh):
+    edge1 = mesh.v[mesh.f[:,1]] - mesh.v[mesh.f[:,0]]
+    edge2 = mesh.v[mesh.f[:,2]] - mesh.v[mesh.f[:,0]]
+    
+    edge1_length = np.linalg.norm(edge1, axis=-1)[:,np.newaxis]
+    edge1_length[edge1_length==0.0] = 1.0
+    edge2_length = np.linalg.norm(edge2, axis=-1)[:,np.newaxis]
+    edge2_length[edge2_length==0.0] = 1.0
+    edge1 = edge1/edge1_length
+    edge2 = edge2/edge2_length
+    normals = np.cross(edge1, edge2, axis=-1)
+    normal_length = np.linalg.norm(normals, axis=-1)
+    invalid_faces = np.where(normal_length==0.0)[0]
+    valid_faces = np.setdiff1d(np.arange(mesh.f.shape[0]), invalid_faces)
+    return Mesh(mesh.v, mesh.f[valid_faces,:])
 
 def load_pp(fname):
     lamdmarks = np.zeros([7,3]).astype(np.float32)
@@ -45,20 +63,24 @@ def load_txt(fname):
         lines = f.read().splitlines()
     # import ipdb; ipdb.set_trace()
     line = []
-    for i in range(len(lines)): # For Jiaxiang_Shang
+    for i in range(len(lines)):
         line.append(lines[i].split(' '))
     # import ipdb; ipdb.set_trace()
     landmarks = np.array(line, dtype=np.float32)
     lmks = landmarks
     return lmks
 
-def compute_error_metric(gt_path, gt_lmk_path, predicted_mesh_path, predicted_lmk_path):
+def compute_error_metric(gt_path, gt_lmk_path, predicted_mesh_path, predicted_lmk_path, predicted_mesh_unit=None, metrical_eval=False, check_alignment=False):
     groundtruth_scan = Mesh(filename=gt_path)
     grundtruth_landmark_points = load_pp(gt_lmk_path)
     predicted_mesh = predicted_mesh_path
     predicted_mesh_landmark_points = predicted_lmk_path
-    distances =  s2m_opt.compute_errors(groundtruth_scan.v, groundtruth_scan.f, grundtruth_landmark_points, predicted_mesh.v,
-                                          predicted_mesh.f, predicted_mesh_landmark_points)
+    if metrical_eval:
+        distances =  s2m_opt_metrical.compute_errors(groundtruth_scan.v, groundtruth_scan.f, grundtruth_landmark_points, predicted_mesh.v,
+                                            predicted_mesh.f, predicted_mesh_landmark_points, predicted_mesh_unit, check_alignment)
+    else:
+        distances =  s2m_opt.compute_errors(groundtruth_scan.v, groundtruth_scan.f, grundtruth_landmark_points, predicted_mesh.v,
+                                            predicted_mesh.f, predicted_mesh_landmark_points, check_alignment)
     return np.stack(distances)
 
 def metric_computation(dataset_folder,
@@ -69,10 +91,14 @@ def metric_computation(dataset_folder,
                        imgs_list=None,
                        challenge='',
                        error_out_path=None,
-                       method_identifier=''):
+                       method_identifier='',
+                       predicted_mesh_unit=None, 
+                       metrical_eval=False,
+                       clean_mesh=False,
+                       check_alignment=False):
     '''
     :param dataset_folder: Path to root of the dataset, which contains images, scans and lanmarks
-    :param predicted_mesh_folder: Path to predicted restuls to be evaluated
+    :param predicted_mesh_folder: Path to predicted results to be evaluated
     :param gt_mesh_folder: Optional. Path to the GT scans. If not specified, it will be looked for in the dataset folder
     :param gt_lmk_folder: Optional. Path to the GT landmarks. If not specified, it will be looked for in the dataset folder
     :param image_set: 'val' or 'test'. This specifies which images will be used. Ignored if imgs_list is specified
@@ -128,6 +154,7 @@ def metric_computation(dataset_folder,
     with open(imgs_list,'r') as f:
         lines = f.read().splitlines()
 
+    num_missing_files = 0
     for i in range(len(lines)):
         subject = lines[i].split('/')[-3]
         experiments = lines[i].split('/')[-2]
@@ -139,76 +166,86 @@ def metric_computation(dataset_folder,
 
         print('Processing %d of %d (%s, %s, %s)' % (i+1, len(lines), subject, experiments, filename))
 
-        predicted_mesh_path = os.path.join(predicted_mesh_folder, subject, experiments, filename[:-4] + '.obj')
+        predicted_mesh_path_obj = os.path.join(predicted_mesh_folder, subject, experiments, filename[:-4] + '.obj')
+        predicted_mesh_path_ply = os.path.join(predicted_mesh_folder, subject, experiments, filename[:-4] + '.ply')
         predicted_landmarks_path_npy = os.path.join(predicted_mesh_folder, subject, experiments, filename[:-4] + '.npy')
         predicted_landmarks_path_txt = os.path.join(predicted_mesh_folder, subject, experiments, filename[:-4] + '.txt')       
 
         gt_mesh_path = glob(os.path.join(gt_mesh_folder, subject, '*.obj'))[0]
         gt_lmk_path = (glob(os.path.join(gt_lmk_folder, subject, '*.pp'))[0])
 
-        if not os.path.exists(predicted_mesh_path):
+        if os.path.exists(predicted_mesh_path_obj):
+            predicted_mesh = Mesh(filename=predicted_mesh_path_obj)
+        elif os.path.exists(predicted_mesh_path_ply):
+            predicted_mesh = Mesh(filename=predicted_mesh_path_ply)
+        else:
             print('Predicted mesh not found - Resulting error is insufficient for comparison')
-            print(predicted_mesh_path)
-            continue
-        if not os.path.exists(predicted_landmarks_path_npy) and not os.path.exists(predicted_landmarks_path_txt):
-            print('Predicted mesh landmarks not found - Resulting error is insufficient for comparison')
+            print(predicted_mesh_path_obj + ' ' + predicted_mesh_path_ply)
+            num_missing_files += 1
             continue
 
-        predicted_mesh = Mesh(filename=predicted_mesh_path)
+        if not os.path.exists(predicted_landmarks_path_npy) and not os.path.exists(predicted_landmarks_path_txt):
+            print('Predicted mesh landmarks not found - Resulting error is insufficient for comparison')
+            num_missing_files += 1
+            continue
+
+        if clean_mesh:
+            predicted_mesh = clean_degenerated_faces(predicted_mesh)
 
         if os.path.exists(predicted_landmarks_path_npy):
             predicted_lmks = np.load(predicted_landmarks_path_npy)
         else:
             predicted_lmks = load_txt(predicted_landmarks_path_txt)
 
-        distances = compute_error_metric(gt_mesh_path, gt_lmk_path, predicted_mesh, predicted_lmks)
-        print(distances)
-        
+        distances = compute_error_metric(gt_mesh_path, gt_lmk_path, predicted_mesh, predicted_lmks, predicted_mesh_unit=predicted_mesh_unit, metrical_eval=metrical_eval, check_alignment=check_alignment)
+        np.random.shuffle(distances)
+        print(distances)       
         distance_metric.append(distances)
     computed_distances = {'computed_distances': distance_metric}
+    print('Number of files missing: ', num_missing_files)
+    computed_distances = {'computed_distances': distance_metric, 'num_missing_files': num_missing_files}
     if challenge == '':
         np.save(os.path.join(error_out_path, '%s_computed_distances.npy' % method_identifier), computed_distances)
     else: 
         np.save(os.path.join(error_out_path, '%s_computed_distances_%s.npy' % (method_identifier, challenge)), computed_distances)
 
 if __name__ == '__main__':
-    # Computation of the s2m error
+    parser = argparse.ArgumentParser(description='Run NoW evaluation')
+    parser.add_argument('--predicted_mesh_folder', type=str, default='', help=' Path to predicted results to be evaluated')
+    parser.add_argument('--dataset_folder', type=str, default='', help='Path to root of the dataset, which contains images, scans and lanmarks. One myst specify either the dataset_folder or gt_mesh_folder and gt_lmk_folder.')
+    parser.add_argument('--image_set', type=str, default='val', help='val or test. This specifies which images will be used. Ignored if imgs_list argument is specified')
+    parser.add_argument('--error_out_path', type=str, default=None, help='(Optional) Path to results folder. If None, results will be saved to predicted_mesh_folder')
+    parser.add_argument('--method_identifier', type=str, default='RECON', help='(Optional) Will be used to name the output file')
+    parser.add_argument('--gt_mesh_folder', type=str, default=None, help='(Optional) Path to the GT scans. If not specified, it will be looked for in the dataset folder')
+    parser.add_argument('--gt_lmk_folder', type=str, default=None, help='(Optional) Path to the GT landmarks. If not specified, it will be looked for in the dataset folder')
+    parser.add_argument('--imgs_list', type=str, default=None, help='(Optional) Path to file with image list to be used')
+    parser.add_argument('--metrical_evaluation', type=bool, default=False, help='Flag if metrical or non-metrical evaluation protocol is used.')
+    parser.add_argument('--predicted_mesh_unit', type=str, default='m', help='(Optional) Unit of measurements of the reconstructions. Required for metrical evaluations. Supported: [mm, cm, m]')
+    parser.add_argument('--challenge', type=str, default='', help='(Optional) Error computation for one of the challenges only. Supported:  [multiview_neutral, multiview_expressions, multiview_occlusions, selfie]')
+    parser.add_argument('--check_alignment', type=bool, default=False, help='(Optional) Outputs the predicted meshes rigidly aligned with the scans to check the rigid alignment')
 
-    nargs = len(sys.argv)
+    args = parser.parse_args()
+    dataset_folder = args.dataset_folder
+    predicted_mesh_folder = args.predicted_mesh_folder
+    image_set = args.image_set
+    error_out_path = args.error_out_path
+    method_identifier = args.method_identifier
+    gt_mesh_folder = args.gt_mesh_folder
+    gt_lmk_folder = args.gt_lmk_folder
+    imgs_list = args.imgs_list
+    metrical_evaluation = args.metrical_evaluation
+    predicted_mesh_unit = args.predicted_mesh_unit
+    challenge = args.challenge
+    check_alignment = args.check_alignment
 
-    dataset_folder = sys.argv[1]
-    predicted_mesh_folder = sys.argv[2]
-
-    if nargs > 3:
-        image_set = sys.argv[3]
-    else:
-        image_set = 'val'
-
-    if nargs > 4:
-        error_out_path = sys.argv[4]
-    else:
-        error_out_path = None
-
-    if nargs > 5:
-        method_identifier = sys.argv[5]
-    else:
-        method_identifier = ''
-
-    if nargs > 6:
-        gt_mesh_folder = sys.argv[6]
-    else:
-        gt_mesh_folder = None
-
-    if nargs > 7:
-        gt_lmk_folder = sys.argv[7]
-    else:
-        gt_lmk_folder = None
-
-    imgs_list = None
-    challenge = ''
+    if metrical_evaluation:
+        method_identifier += '_metrical'
 
     metric_computation(dataset_folder, predicted_mesh_folder, gt_mesh_folder, gt_lmk_folder, image_set, imgs_list,
                        challenge=challenge,
                        error_out_path=error_out_path,
-                       method_identifier=method_identifier
+                       method_identifier=method_identifier, 
+                       predicted_mesh_unit=predicted_mesh_unit, 
+                       metrical_eval=metrical_evaluation,
+                       check_alignment=check_alignment
                        )

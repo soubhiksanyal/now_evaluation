@@ -15,6 +15,9 @@ import matplotlib.pyplot as plt
 from psbody.mesh import Mesh
 import chumpy as ch
 
+def get_path(filename):
+    return os.path.dirname(filename)
+
 def cumulative_error(errors, nbins=100000):
     errors = errors.ravel()
     values, base = np.histogram(errors, bins=nbins) #values, base = np.histogram(1000*errors, bins=nbins)
@@ -34,7 +37,8 @@ def generating_cumulative_error_plots(method_error_fnames: list, method_identifi
         method_errors.append(np.load(fname, allow_pickle=True, encoding="latin1").item()['computed_distances'])
 
     for i in range(len(method_identifiers)):
-        print('%s - median: %f, mean: %f, std: %f' % (method_identifiers[i], np.median(np.hstack(method_errors[i])), np.mean(np.hstack(method_errors[i])), np.std(np.hstack(method_errors[i]))))
+        print('%s - median: %.2f, mean: %.2f, std: %.2f' % (method_identifiers[i], np.round(np.median(np.hstack(method_errors[i])), 2), np.round(np.mean(np.hstack(method_errors[i])), 2), np.round(np.std(np.hstack(method_errors[i])), 2)))
+
 
     cumulative_errors = []
     for error in method_errors:
@@ -54,6 +58,14 @@ def generating_cumulative_error_plots(method_error_fnames: list, method_identifi
     plt.ylabel('Percentage', fontsize=12)
     lgd = ax.legend(loc='lower right')
     plt.savefig(out_fname)
+    plt.clf()
+
+    _, ext = os.path.splitext(out_fname)
+    if ext == '.svg':
+        from subprocess import call
+        out_fname_pdf = out_fname.replace('.svg', '.pdf')
+        args = ['rsvg-convert', '-f', 'pdf', '-o', out_fname_pdf, out_fname]
+        call(args)    
 
 if __name__ == '__main__':
     # List of method identifiers, used as method name within the polot
@@ -63,4 +75,7 @@ if __name__ == '__main__':
     # File name of the output error plot
     out_fname = ''
 
-    generating_cumulative_error_plots(method_error_fnames, method_identifiers, out_fname)
+    if len(method_error_fnames) != len(method_identifiers):
+        print('Number of error files and identifiers does not match: %d != %d' % (len(method_error_fnames), len(method_identifiers)))
+    else:
+        generating_cumulative_error_plots(method_error_fnames, method_identifiers, out_fname)
