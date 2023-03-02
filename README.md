@@ -53,10 +53,13 @@ cp -r flame-fitting/smpl_webuser now_evaluation/smpl_webuser
 cp -r flame-fitting/sbody now_evaluation/sbody
 ```
 
-Clone [Eigen](http://eigen.tuxfamily.org/index.php?title=Main_Page) and copy the it to the following folder 
+Clone [Eigen](http://eigen.tuxfamily.org/index.php?title=Main_Page), checkout v3.4.0, and copy the it to the following folder 
 
 ```
 git clone https://gitlab.com/libeigen/eigen.git
+cd eigen
+git checkout 3.4.0
+cd ..
 cp -r eigen now_evaluation/sbody/alignment/mesh_distance/eigen
 ```
 
