@@ -1,3 +1,42 @@
+# Updated with Dockerfile and faster parallel processing
+
+This fork makes it easier to setup and run the NoW evaluation script. It also processes your predictions faster thanks to using multiprocessing.
+
+## Setup
+
+First, clone this repo, then build the docker image:
+
+```
+docker build -t noweval docker/
+```
+
+Download all components of the NoW dataset to a folder like this:
+
+```
+/datadir/NoW_Evaluation/dataset
+├── imagepathsvalidation.txt
+├── NoW_Dataset
+├── scans
+├── scans_lmks_onlypp
+└── test
+```
+
+## Evaluating with the Docker image
+
+Make your predictions on the validation set, and put them in e.g. `/path/with/your/predictions`
+
+Now just run:
+
+```
+docker run --ipc host --rm -v /datadir/NoW_Evaluation/dataset:/dataset -v /path/with/your/predictions:/preds noweval
+```
+
+The results will be placed in `/path/with/your/predictions/results/`
+
+Done!
+
+The original README continues below:
+
 # NoW Evaluation
 
 This is the official repository for evaluation on the [NoW Benchmark](https://now.is.tue.mpg.de). The goal of the NoW benchmark is to introduce a standard evaluation metric to measure the accuracy and robustness of 3D face reconstruction methods from a single image under variations in viewing angle, lighting, and common occlusions. 
