@@ -18,6 +18,28 @@ import scan2mesh_computations as s2m_opt
 import scan2mesh_computations_metrical as s2m_opt_metrical
 import matplotlib.pyplot as plt
 from psbody.mesh import Mesh
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from tqdm import tqdm
+import contextlib
+import os
+import functools
+
+
+def suppress_output(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        with open(os.devnull, "w") as devnull:
+            old_stdout = os.sys.stdout
+            old_stderr = os.sys.stderr
+            os.sys.stdout = devnull
+            os.sys.stderr = devnull
+            try:
+                return func(*args, **kwargs)
+            finally:
+                os.sys.stdout = old_stdout
+                os.sys.stderr = old_stderr
+
+    return wrapper
 
 
 def clean_degenerated_faces(mesh):
@@ -113,6 +135,97 @@ def compute_error_metric(
     return np.stack(distances)
 
 
+@suppress_output
+def process_single_file(args):
+    # Unpack the arguments
+    (
+        i,
+        lines,
+        predicted_mesh_folder,
+        gt_mesh_folder,
+        gt_lmk_folder,
+        challenge,
+        clean_mesh,
+        predicted_mesh_unit,
+        metrical_eval,
+        check_alignment,
+    ) = args
+
+    subject = lines[i].split("/")[-3]
+    experiments = lines[i].split("/")[-2]
+    filename = lines[i].split("/")[-1]
+
+    if challenge != "":
+        if experiments != challenge:
+            return None
+
+    print(
+        "Processing %d of %d (%s, %s, %s)"
+        % (i + 1, len(lines), subject, experiments, filename)
+    )
+
+    predicted_mesh_path_obj = os.path.join(
+        predicted_mesh_folder, subject, experiments, filename[:-4] + ".obj"
+    )
+    predicted_mesh_path_ply = os.path.join(
+        predicted_mesh_folder, subject, experiments, filename[:-4] + ".ply"
+    )
+    predicted_landmarks_path_npy = os.path.join(
+        predicted_mesh_folder, subject, experiments, filename[:-4] + ".npy"
+    )
+    predicted_landmarks_path_txt = os.path.join(
+        predicted_mesh_folder, subject, experiments, filename[:-4] + ".txt"
+    )
+
+    gt_mesh_path = glob(os.path.join(gt_mesh_folder, subject, "*.obj"))[0]
+    gt_lmk_path = glob(os.path.join(gt_lmk_folder, subject, "*.pp"))[0]
+
+    if os.path.exists(predicted_mesh_path_obj):
+        predicted_mesh = Mesh(filename=predicted_mesh_path_obj)
+    elif os.path.exists(predicted_mesh_path_ply):
+        predicted_mesh = Mesh(filename=predicted_mesh_path_ply)
+    else:
+        print(
+            "Predicted mesh not found - Resulting error is insufficient for comparison"
+        )
+        print(predicted_mesh_path_obj + " " + predicted_mesh_path_ply)
+        return None
+
+    if not os.path.exists(predicted_landmarks_path_npy) and not os.path.exists(
+        predicted_landmarks_path_txt
+    ):
+        print(
+            "Predicted mesh landmarks not found - Resulting error is insufficient for comparison"
+        )
+        return None
+
+    if clean_mesh:
+        predicted_mesh = clean_degenerated_faces(predicted_mesh)
+
+    if os.path.exists(predicted_landmarks_path_npy):
+        predicted_lmks = np.load(predicted_landmarks_path_npy)
+        if predicted_lmks.shape[0] == 1:
+            predicted_lmks = predicted_lmks[0]
+        assert (
+            predicted_lmks.shape[0] == 7
+        ), f"predicted_lmks.shape={predicted_lmks.shape} / should be (7,3)"
+    else:
+        predicted_lmks = load_txt(predicted_landmarks_path_txt)
+
+    distances = compute_error_metric(
+        gt_mesh_path,
+        gt_lmk_path,
+        predicted_mesh,
+        predicted_lmks,
+        predicted_mesh_unit=predicted_mesh_unit,
+        metrical_eval=metrical_eval,
+        check_alignment=check_alignment,
+    )
+    np.random.shuffle(distances)
+
+    return distances
+
+
 def metric_computation(
     dataset_folder,
     predicted_mesh_folder,
@@ -199,84 +312,45 @@ def metric_computation(
         lines = f.read().splitlines()
 
     num_missing_files = 0
-    for i in range(len(lines)):
-        subject = lines[i].split("/")[-3]
-        experiments = lines[i].split("/")[-2]
-        filename = lines[i].split("/")[-1]
 
-        if challenge != "":
-            if experiments != challenge:
-                continue
-
-        print(
-            "Processing %d of %d (%s, %s, %s)"
-            % (i + 1, len(lines), subject, experiments, filename)
+    # Prepare arguments for parallel processing
+    args_list = [
+        (
+            i,
+            lines,
+            predicted_mesh_folder,
+            gt_mesh_folder,
+            gt_lmk_folder,
+            challenge,
+            clean_mesh,
+            predicted_mesh_unit,
+            metrical_eval,
+            check_alignment,
         )
+        for i in range(len(lines))
+    ]
 
-        predicted_mesh_path_obj = os.path.join(
-            predicted_mesh_folder, subject, experiments, filename[:-4] + ".obj"
-        )
-        predicted_mesh_path_ply = os.path.join(
-            predicted_mesh_folder, subject, experiments, filename[:-4] + ".ply"
-        )
-        predicted_landmarks_path_npy = os.path.join(
-            predicted_mesh_folder, subject, experiments, filename[:-4] + ".npy"
-        )
-        predicted_landmarks_path_txt = os.path.join(
-            predicted_mesh_folder, subject, experiments, filename[:-4] + ".txt"
-        )
+    # Use ProcessPoolExecutor for parallel processing
+    nproc = os.cpu_count() * 4  # nproc * 4 seemed optimal
+    with ProcessPoolExecutor(max_workers=nproc) as executor:
+        future_to_result = {
+            executor.submit(process_single_file, args): i
+            for i, args in enumerate(args_list)
+        }
 
-        gt_mesh_path = glob(os.path.join(gt_mesh_folder, subject, "*.obj"))[0]
-        gt_lmk_path = glob(os.path.join(gt_lmk_folder, subject, "*.pp"))[0]
-
-        if os.path.exists(predicted_mesh_path_obj):
-            predicted_mesh = Mesh(filename=predicted_mesh_path_obj)
-        elif os.path.exists(predicted_mesh_path_ply):
-            predicted_mesh = Mesh(filename=predicted_mesh_path_ply)
-        else:
-            print(
-                "Predicted mesh not found - Resulting error is insufficient for comparison"
-            )
-            print(predicted_mesh_path_obj + " " + predicted_mesh_path_ply)
-            num_missing_files += 1
-            continue
-
-        if not os.path.exists(predicted_landmarks_path_npy) and not os.path.exists(
-            predicted_landmarks_path_txt
+        # Use tqdm to show progress bar
+        for future in tqdm(
+            as_completed(future_to_result),
+            total=len(future_to_result),
+            desc="Processing",
+            unit="file",
         ):
-            print(
-                "Predicted mesh landmarks not found - Resulting error is insufficient for comparison"
-            )
-            num_missing_files += 1
-            continue
+            result = future.result()
+            if result is not None:
+                distance_metric.append(result)
+            else:
+                num_missing_files += 1
 
-        if clean_mesh:
-            predicted_mesh = clean_degenerated_faces(predicted_mesh)
-
-        if os.path.exists(predicted_landmarks_path_npy):
-            predicted_lmks = np.load(predicted_landmarks_path_npy)
-            if predicted_lmks.shape[0] == 1:
-                predicted_lmks = predicted_lmks[0]
-            assert (
-                predicted_lmks.shape[0] == 7
-            ), f"predicted_lmks.shape={predicted_lmks.shape}"
-        else:
-            predicted_lmks = load_txt(predicted_landmarks_path_txt)
-
-        distances = compute_error_metric(
-            gt_mesh_path,
-            gt_lmk_path,
-            predicted_mesh,
-            predicted_lmks,
-            predicted_mesh_unit=predicted_mesh_unit,
-            metrical_eval=metrical_eval,
-            check_alignment=check_alignment,
-        )
-        np.random.shuffle(distances)
-        print(distances)
-        distance_metric.append(distances)
-    computed_distances = {"computed_distances": distance_metric}
-    print("Number of files missing: ", num_missing_files)
     computed_distances = {
         "computed_distances": distance_metric,
         "num_missing_files": num_missing_files,
@@ -296,6 +370,10 @@ def metric_computation(
             ),
             computed_distances,
         )
+
+    print(f"Computed distances saved to {error_out_path}")
+    print(f"Number of missing files: {num_missing_files}")
+    print(f"Number of computed distances: {len(distance_metric)}")
 
 
 if __name__ == "__main__":
