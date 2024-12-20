@@ -255,6 +255,11 @@ def metric_computation(
 
         if os.path.exists(predicted_landmarks_path_npy):
             predicted_lmks = np.load(predicted_landmarks_path_npy)
+            if predicted_lmks.shape[0] == 1:
+                predicted_lmks = predicted_lmks[0]
+            assert (
+                predicted_lmks.shape[0] == 7
+            ), f"predicted_lmks.shape={predicted_lmks.shape}"
         else:
             predicted_lmks = load_txt(predicted_landmarks_path_txt)
 
