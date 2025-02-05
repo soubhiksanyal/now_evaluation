@@ -345,15 +345,22 @@ def metric_computation(
             desc="Processing",
             unit="file",
         ):
+            index = future_to_result[future]
             result = future.result()
             if result is not None:
-                distance_metric.append(result)
+                distance_metric.append((result, index))
             else:
                 num_missing_files += 1
 
+    # Sort the results
+    distance_metric = sorted(distance_metric, key=lambda x: x[1])
+    indices = [x[1] for x in distance_metric]
+    distance_metric = [x[0] for x in distance_metric]
+    input_files = [lines[i] for i in indices]
     computed_distances = {
         "computed_distances": distance_metric,
         "num_missing_files": num_missing_files,
+        "input_files": np.array(input_files),
     }
     if challenge == "":
         np.save(
