@@ -105,7 +105,7 @@ def compute_error_metric(
     predicted_lmk_path,
     predicted_mesh_unit=None,
     metrical_eval=False,
-    check_alignment=False,
+    check_alignment_output_dir=None,
 ):
     groundtruth_scan = Mesh(filename=gt_path)
     grundtruth_landmark_points = load_pp(gt_lmk_path)
@@ -120,7 +120,7 @@ def compute_error_metric(
             predicted_mesh.f,
             predicted_mesh_landmark_points,
             predicted_mesh_unit,
-            check_alignment,
+            check_alignment_output_dir,
         )
     else:
         distances = s2m_opt.compute_errors(
@@ -130,7 +130,7 @@ def compute_error_metric(
             predicted_mesh.v,
             predicted_mesh.f,
             predicted_mesh_landmark_points,
-            check_alignment,
+            check_alignment_output_dir,
         )
     return np.stack(distances)
 
@@ -149,6 +149,7 @@ def process_single_file(args):
         predicted_mesh_unit,
         metrical_eval,
         check_alignment,
+        check_alignment_output_dir,
     ) = args
 
     subject = lines[i].split("/")[-3]
@@ -212,6 +213,12 @@ def process_single_file(args):
     else:
         predicted_lmks = load_txt(predicted_landmarks_path_txt)
 
+    if check_alignment:
+        check_outdir = os.path.join(
+            check_alignment_output_dir, subject, experiments, filename
+        )
+    else:
+        check_outdir = None
     distances = compute_error_metric(
         gt_mesh_path,
         gt_lmk_path,
@@ -219,10 +226,9 @@ def process_single_file(args):
         predicted_lmks,
         predicted_mesh_unit=predicted_mesh_unit,
         metrical_eval=metrical_eval,
-        check_alignment=check_alignment,
+        check_alignment_output_dir=check_outdir,
     )
     np.random.shuffle(distances)
-
     return distances
 
 
@@ -240,6 +246,8 @@ def metric_computation(
     metrical_eval=False,
     clean_mesh=False,
     check_alignment=False,
+    check_alignment_output_dir="./check_alignment_outs",
+    nproc=None,
 ):
     """
     :param dataset_folder: Path to root of the dataset, which contains images, scans and lanmarks
@@ -326,29 +334,41 @@ def metric_computation(
             predicted_mesh_unit,
             metrical_eval,
             check_alignment,
+            check_alignment_output_dir,
         )
         for i in range(len(lines))
     ]
 
     # Use ProcessPoolExecutor for parallel processing
-    nproc = os.cpu_count() * 4  # nproc * 4 seemed optimal
-    with ProcessPoolExecutor(max_workers=nproc) as executor:
-        future_to_result = {
-            executor.submit(process_single_file, args): i
-            for i, args in enumerate(args_list)
-        }
+    if nproc is None:
+        nproc = os.cpu_count() * 4  # nproc * 4 seemed optimal
+    if nproc > 1:
+        print(f"Using {nproc} processes for parallel processing")
+        with ProcessPoolExecutor(max_workers=nproc) as executor:
+            future_to_result = {
+                executor.submit(process_single_file, args): i
+                for i, args in enumerate(args_list)
+            }
 
-        # Use tqdm to show progress bar
-        for future in tqdm(
-            as_completed(future_to_result),
-            total=len(future_to_result),
-            desc="Processing",
-            unit="file",
-        ):
-            index = future_to_result[future]
-            result = future.result()
+            # Use tqdm to show progress bar
+            for future in tqdm(
+                as_completed(future_to_result),
+                total=len(future_to_result),
+                desc="Processing",
+                unit="file",
+            ):
+                index = future_to_result[future]
+                result = future.result()
+                if result is not None:
+                    distance_metric.append((result, index))
+                else:
+                    num_missing_files += 1
+    else:
+        print("Using single process for processing")
+        for i, args in enumerate(tqdm(args_list, desc="Processing", unit="file")):
+            result = process_single_file(args)
             if result is not None:
-                distance_metric.append((result, index))
+                distance_metric.append((result, i))
             else:
                 num_missing_files += 1
 
@@ -362,21 +382,19 @@ def metric_computation(
         "num_missing_files": num_missing_files,
         "input_files": np.array(input_files),
     }
-    if challenge == "":
-        np.save(
-            os.path.join(
-                error_out_path, "%s_computed_distances.npy" % method_identifier
-            ),
-            computed_distances,
-        )
-    else:
-        np.save(
-            os.path.join(
-                error_out_path,
-                "%s_computed_distances_%s.npy" % (method_identifier, challenge),
-            ),
-            computed_distances,
-        )
+    challenge = "distances" if challenge == "" else f"distances_{challenge}"
+    outpath = f"{method_identifier}_computed_{challenge}.npy"
+    outpath = os.path.join(error_out_path, outpath)
+    np.save(outpath, computed_distances)
+
+    # Write the mean and median results for faster loading later
+    cat = np.concatenate(computed_distances["computed_distances"])
+    median = np.median(cat)
+    mean = np.mean(cat)
+    cache_path = str(outpath) + ".meanmedian"
+    with open(cache_path, "w") as f:
+        f.write(f"{median}\n")
+        f.write(f"{mean}\n")
 
     print(f"Computed distances saved to {error_out_path}")
     print(f"Number of missing files: {num_missing_files}")
@@ -457,6 +475,18 @@ if __name__ == "__main__":
         default=False,
         help="(Optional) Outputs the predicted meshes rigidly aligned with the scans to check the rigid alignment",
     )
+    parser.add_argument(
+        "--check_alignment_output_dir",
+        type=str,
+        default="./check_alignment_outs",
+        help="Dir name in which to place the outputs from the rigid alignment check",
+    )
+    parser.add_argument(
+        "--nproc",
+        type=int,
+        default=None,
+        help="(Optional) Number of processes to use for parallel processing",
+    )
 
     args = parser.parse_args()
     dataset_folder = args.dataset_folder
@@ -471,6 +501,8 @@ if __name__ == "__main__":
     predicted_mesh_unit = args.predicted_mesh_unit
     challenge = args.challenge
     check_alignment = args.check_alignment
+    check_alignment_output_dir = args.check_alignment_output_dir
+    nproc = args.nproc
 
     if metrical_evaluation:
         method_identifier += "_metrical"
@@ -488,4 +520,6 @@ if __name__ == "__main__":
         predicted_mesh_unit=predicted_mesh_unit,
         metrical_eval=metrical_evaluation,
         check_alignment=check_alignment,
+        check_alignment_output_dir=check_alignment_output_dir,
+        nproc=nproc,
     )
