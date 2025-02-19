@@ -33,12 +33,15 @@ RUN groupadd -g 555 devgroup && \
     echo devuser ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/devuser && \
     chmod 0440 /etc/sudoers.d/devuser
 
+# Copy code into container
+COPY . /home/devuser/now_evaluation
+
+# Change ownership of the now_evaluation directory
+RUN chown -R devuser:devgroup /home/devuser/now_evaluation
+
 # Switch to non-root user
 USER devuser
 WORKDIR /home/devuser
-
-# Copy code into container
-COPY . /home/devuser/now_evaluation
 
 # Clone and set up projects
 RUN git clone https://github.com/MPI-IS/mesh /home/devuser/mesh && \
