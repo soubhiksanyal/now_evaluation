@@ -128,11 +128,6 @@ def compute_rigid_alignment(masked_gt_scan, grundtruth_landmark_points,
     s , R, t = rigid_scan_2_mesh_alignment(masked_gt_scan, Mesh(predicted_mesh_vertices_aligned, predicted_mesh_faces))
     predicted_mesh_vertices_aligned = s*(R.dot(predicted_mesh_vertices_aligned.T)).T + t
 
-    if check_alignment_output_dir:
-        masked_gt_scan.write_obj('gt_scan_val.obj')
-        Mesh(predicted_mesh_vertices, predicted_mesh_faces).write_obj('predicted.obj')
-        Mesh(predicted_mesh_vertices_aligned, predicted_mesh_faces).write_obj('predicted_aligned.obj')
-
     if check_alignment_output_dir is not None:
         write_alignment_check_files(
             check_alignment_output_dir,
