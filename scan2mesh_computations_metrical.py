@@ -17,6 +17,7 @@ from sbody.alignment.objectives import sample_from_mesh
 from sbody.mesh_distance import ScanToMesh
 from psbody.mesh.meshviewer import MeshViewer
 from scipy.sparse.linalg import cg
+from scan2mesh_computations import write_alignment_check_files
 
 
 def rigid_scan_2_mesh_alignment(scan, mesh, visualize=False):
@@ -103,7 +104,7 @@ def get_unit_factor(unit):
         raise ValueError('Unit %s not supported' % unit)
 
 def compute_rigid_alignment(masked_gt_scan, grundtruth_landmark_points, 
-                            predicted_mesh_vertices, predicted_mesh_faces, predicted_mesh_landmark_points, predicted_mesh_unit='m', check_rigid_alignment=False):
+                            predicted_mesh_vertices, predicted_mesh_faces, predicted_mesh_landmark_points, predicted_mesh_unit='m', check_alignment_output_dir=None):
     """
     Computes the rigid alignment between the 
     :param masked_gt_scan: Masked face area mesh
@@ -127,16 +128,19 @@ def compute_rigid_alignment(masked_gt_scan, grundtruth_landmark_points,
     s , R, t = rigid_scan_2_mesh_alignment(masked_gt_scan, Mesh(predicted_mesh_vertices_aligned, predicted_mesh_faces))
     predicted_mesh_vertices_aligned = s*(R.dot(predicted_mesh_vertices_aligned.T)).T + t
 
-    if check_rigid_alignment:
-        masked_gt_scan.write_obj('gt_scan_val.obj')
-        Mesh(predicted_mesh_vertices, predicted_mesh_faces).write_obj('predicted.obj')
-        Mesh(predicted_mesh_vertices_aligned, predicted_mesh_faces).write_obj('predicted_aligned.obj')
-        import pdb; pdb.set_trace()
-
+    if check_alignment_output_dir is not None:
+        write_alignment_check_files(
+            check_alignment_output_dir,
+            masked_gt_scan,
+            predicted_mesh_vertices,
+            predicted_mesh_vertices_aligned,
+            predicted_mesh_faces,
+        )
+    
     return (predicted_mesh_vertices_aligned, masked_gt_scan)
 
 def compute_errors(groundtruth_vertices, groundtruth_faces, grundtruth_landmark_points, predicted_mesh_vertices,
-                    predicted_mesh_faces, predicted_mesh_landmark_points, predicted_mesh_unit, check_rigid_alignment=False):
+                    predicted_mesh_faces, predicted_mesh_landmark_points, predicted_mesh_unit, check_alignment_output_dir=None):
     """
     This script computes the reconstruction error between an input mesh and a ground truth mesh.
     :param groundtruth_vertices: An n x 3 numpy array of vertices from a ground truth scan.
@@ -145,7 +149,7 @@ def compute_errors(groundtruth_vertices, groundtruth_faces, grundtruth_landmark_
     :param predicted_mesh_faces: A k x 3 numpy array of vertex indices composing the predicted mesh.
     :param predicted_mesh_landmark_points: A 7 x 3 list containing the annotated 3D point locations in the predicted mesh.
     :param predicted_mesh_unit: Unit of measurement of the predicted meshes in ['m', 'cm', 'mm']
-    :param check_rigid_alignment [optional]: Returns aligned reconstruction and cropped ground truth scan
+    :param check_alignment_output_dir [optional]: If provided, will write aligned and GT mesh to this dir for verification.
     :return: A list of distances (errors)
     """
 
@@ -157,7 +161,7 @@ def compute_errors(groundtruth_vertices, groundtruth_faces, grundtruth_landmark_
                                                                                 predicted_mesh_vertices, predicted_mesh_faces, 
                                                                                 predicted_mesh_landmark_points,
                                                                                 predicted_mesh_unit,
-                                                                                check_rigid_alignment)
+                                                                                check_alignment_output_dir)
 
     # Compute error
     sampler = sample_from_mesh(masked_gt_scan, sample_type='vertices')

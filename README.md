@@ -1,3 +1,7 @@
+
+
+The original README continues below:
+
 # NoW Evaluation
 
 This is the official repository for evaluation on the [NoW Benchmark](https://now.is.tue.mpg.de). The goal of the NoW benchmark is to introduce a standard evaluation metric to measure the accuracy and robustness of 3D face reconstruction methods from a single image under variations in viewing angle, lighting, and common occlusions. 
@@ -20,7 +24,56 @@ Computer Vision and Pattern Recognition (CVPR) 2019
 ```
 git clone https://github.com/soubhiksanyal/now_evaluation.git
 ```
-## Installation
+
+## **New:** Easy setup with Docker, and speed-up with parallel processing
+
+It is now easier to setup and run the NoW evaluation script with Docker. It also processes your predictions faster thanks to using multiprocessing.
+
+### Setup
+
+Installing using docker automates all of the external library, etc., setup outlined in the original readme setup sections below.
+
+To run with Docker, just build the docker image:
+
+```bash
+docker build -t noweval .
+```
+
+Download all components of the NoW dataset to a folder like this (see below sections for where to download the dataset from):
+
+```bash
+/datadir/NoW_Evaluation/dataset
+├── imagepathsvalidation.txt
+├── NoW_Dataset
+├── scans
+├── scans_lmks_onlypp
+└── test
+```
+
+### Evaluating with the Docker image
+
+Make your predictions on the validation set, and put them in e.g. `/path/with/your/predictions`
+
+Now just run:
+
+```bash
+docker run --ipc host --rm -v /datadir/NoW_Evaluation/dataset:/dataset -v /path/with/your/predictions:/preds noweval
+```
+
+The results will be placed in `/path/with/your/predictions/results/`
+
+### Parallelism speed-up
+
+By default, the code will now use `num_cpu_cores * 4` processes to process your data in parallel. To switch back to using a single process, set `--nproc 1`:
+
+```bash
+# If using Docker
+docker run --ipc host --rm -v /datadir/NoW_Evaluation/dataset:/dataset -v /path/with/your/predictions:/preds noweval --nproc 1
+# If running in Python
+python compute_error.py --nproc 1
+```
+
+## Installation (original)
 
 Please install the virtual environment
 
